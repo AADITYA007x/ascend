@@ -1,0 +1,50 @@
+// Builders for new records, with sensible defaults. Pure apart from id creation.
+
+export const SUBJECT_COLORS = ['#2f6f6a', '#c7794a', '#6b7fb3', '#a06a9a', '#7a9a4f', '#b8913a', '#4f8fa8', '#b5655f'];
+
+export function newId() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/** First colour not used yet, cycling when all are taken. */
+export function pickColor(usedColors = []) {
+  const free = SUBJECT_COLORS.find((c) => !usedColors.includes(c));
+  return free ?? SUBJECT_COLORS[usedColors.length % SUBJECT_COLORS.length];
+}
+
+export function makeSemester(fields = {}) {
+  return { id: newId(), name: '', startDate: '', endDate: '', dailyLimitMin: 180, ...fields };
+}
+
+export function makeSubject(fields = {}) {
+  return { id: newId(), semesterId: '', name: '', code: '', credits: 3, color: SUBJECT_COLORS[0], ...fields };
+}
+
+export function makeUnit(fields = {}) {
+  return { id: newId(), subjectId: '', name: '', order: 0, ...fields };
+}
+
+export function makeTopic(fields = {}) {
+  return { id: newId(), unitId: '', subjectId: '', name: '', estMin: 45, difficulty: 2, order: 0, ...fields };
+}
+
+export function makeDeadline(fields = {}) {
+  return {
+    id: newId(),
+    semesterId: '',
+    subjectId: '',
+    type: 'quiz',
+    title: '',
+    date: '',
+    weight: 10,
+    unitIds: [],
+    ...fields,
+  };
+}
+
+export function makeSlot(fields = {}) {
+  return { id: newId(), semesterId: '', subjectId: '', label: '', day: 0, start: '09:00', end: '10:00', ...fields };
+}
+
+export const DIFFICULTY_LABELS = { 1: 'Easy', 2: 'Medium', 3: 'Hard' };

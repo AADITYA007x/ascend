@@ -1,0 +1,78 @@
+/* Design tokens: warm, calm, soft. Light and dark. */
+:root {
+  color-scheme: light dark;
+
+  --bg: #f7f2ea;
+  --surface: #fffdf9;
+  --surface-2: #f1eadf;
+  --text: #2b2722;
+  --muted: #776d63;
+  --line: #e6ddd0;
+
+  --accent: #2f6f6a;
+  --accent-ink: #ffffff;
+  --accent-soft: #e0ede9;
+
+  --sun: #e9a15b;
+  --hill-far: #9cc3ba;
+  --snow: #fffaf2;
+
+  --warn: #946414;
+  --warn-soft: #fbefd9;
+  --danger: #a4513f;
+
+  --diff-1: #e3efe5;
+  --diff-1-ink: #3d6b46;
+  --diff-2: #f6ecd8;
+  --diff-2-ink: #7a5a1c;
+  --diff-3: #f6e1da;
+  --diff-3-ink: #8e4635;
+
+  --shadow: 0 1px 2px rgba(60, 45, 30, 0.06), 0 4px 14px rgba(60, 45, 30, 0.06);
+  --shadow-lift: 0 6px 24px rgba(60, 45, 30, 0.16);
+
+  --radius: 18px;
+  --radius-sm: 12px;
+  --gap: 12px;
+  --pad: 16px;
+  --tap: 48px;
+
+  --font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', sans-serif;
+
+  --tabbar-h: 64px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1a17;
+    --surface: #26231f;
+    --surface-2: #302c27;
+    --text: #f1ebe2;
+    --muted: #b0a598;
+    --line: #3b3630;
+
+    --accent: #86c6bb;
+    --accent-ink: #10221f;
+    --accent-soft: #263f3b;
+
+    --sun: #e9a15b;
+    --hill-far: #4d7770;
+    --snow: #f1ebe2;
+
+    --warn: #e5b964;
+    --warn-soft: #3a311f;
+    --danger: #e5937e;
+
+    --diff-1: #263a2b;
+    --diff-1-ink: #a9d3b1;
+    --diff-2: #3b3221;
+    --diff-2-ink: #e8c98a;
+    --diff-3: #43291f;
+    --diff-3-ink: #f0ad9a;
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-lift: 0 6px 24px rgba(0, 0, 0, 0.45);
+  }
+}
