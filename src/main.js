@@ -13,13 +13,15 @@ import { renderSubject } from './screens/subject.js';
 import { renderDeadlines } from './screens/deadlines.js';
 import { renderTimetable } from './screens/timetable.js';
 import { renderFocus } from './screens/focus.js';
+import { renderProgress } from './screens/progress.js';
 
 // Every screen except Semester needs a semester first.
 const needsSemester = (render) => (...args) => (state.semester ? render(...args) : renderSemester());
 
 const routes = {
   today: { render: needsSemester(renderToday) },
-  semester: { render: renderSemester },
+  semester: { render: renderSemester, tab: 'progress' },
+  progress: { render: needsSemester(renderProgress) },
   subjects: { render: needsSemester(renderSubjects) },
   subject: { render: needsSemester(renderSubject), tab: 'subjects' },
   deadlines: { render: needsSemester(renderDeadlines) },

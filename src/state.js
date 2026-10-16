@@ -1,6 +1,6 @@
 // In-memory copy of the active semester's data. Screens read from here;
 // after any save they call reload() and the router re-renders.
-import { getActiveSemester, getActiveTimer, loadSemesterData } from './db/repo.js';
+import { getActiveSemester, getActiveTimer, getMeta, loadSemesterData } from './db/repo.js';
 
 export const state = {
   semester: null,
@@ -11,11 +11,13 @@ export const state = {
   slots: [],
   sessions: [],
   timer: null, // the running focus timer, if any
+  storySeen: null, // Monday of the last weekly story dismissed on Today
 };
 
 export async function reload() {
   state.semester = await getActiveSemester();
   state.timer = await getActiveTimer();
+  state.storySeen = await getMeta('storySeen');
   if (!state.semester) {
     Object.assign(state, { subjects: [], units: [], topics: [], deadlines: [], slots: [], sessions: [] });
     return state;

@@ -1367,3 +1367,176 @@ select.input {
 .weak-text {
   color: var(--warn);
 }
+
+/* ---------- Progress (Milestone 5) ---------- */
+.meter {
+  height: 10px;
+  margin: 10px 0 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--subject, var(--accent));
+}
+
+.headline-card {
+  border-left: 5px solid var(--accent);
+}
+
+.headline-card.status-tight {
+  border-left-color: var(--warn);
+}
+
+.headline-card.status-behind {
+  border-left-color: var(--danger);
+}
+
+.status-pill.status-ontrack {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.status-pill.status-tight {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.status-pill.status-behind {
+  background: var(--diff-3);
+  color: var(--diff-3-ink);
+}
+
+.status-pill.status-done {
+  background: var(--diff-1);
+  color: var(--diff-1-ink);
+}
+
+.track-row,
+.subject-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.track-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.track-detail {
+  margin: 0 0 0 26px;
+}
+
+.subject-progress p {
+  margin: 0;
+}
+
+.chart {
+  margin: 4px -4px 0;
+}
+
+.chart svg {
+  display: block;
+  overflow: visible;
+}
+
+.chart-base {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.chart-limit {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.chart-axis {
+  fill: var(--muted);
+  font-size: 10px;
+}
+
+.chart-today {
+  fill: var(--text);
+  font-weight: 700;
+}
+
+.chart-col {
+  cursor: pointer;
+  outline: none;
+}
+
+.chart-col:focus-visible .chart-hit,
+.chart-col.active .chart-hit {
+  fill: var(--surface-2);
+}
+
+.chart-readout {
+  min-height: 1.3em;
+  margin: 0;
+}
+
+.chart-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.chart-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.chart-table summary,
+.story-earlier summary {
+  margin-top: 8px;
+  color: var(--accent);
+  cursor: pointer;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
+
+.chart-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.chart-table th,
+.chart-table td {
+  text-align: left;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.story p {
+  margin: 0 0 4px;
+}
+
+.story-when {
+  margin: 12px 0 4px;
+  font-weight: 600;
+}
+
+.story-card .story-when:first-of-type {
+  margin-top: 0;
+}
+
+.story-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 6px;
+}

@@ -63,8 +63,8 @@ export function topicRatings(sessions) {
 
 /**
  * Where each finished topic stands. Map of topicId →
- * { step, due, lastDate, mastered, weak, weakness, ratings }
- * step = reviews done (0–4); due = next review date, or null once mastered.
+ * { step, due, lastDate, mastered, reviews, weak, weakness, ratings }
+ * step = reviews that moved it on (0–4); reviews = all review days; due = next review date, or null once mastered.
  * Only one review a day counts as a step, and nothing on the day the topic was finished.
  */
 export function revisionStates(topics, sessions) {
@@ -80,10 +80,11 @@ export function revisionStates(topics, sessions) {
     if (f < 0) continue;
     const ratings = list.filter((s) => s.rating).map((s) => s.rating);
     const learnRating = list[f].rating ?? [...list.slice(0, f)].reverse().find((s) => s.rating)?.rating ?? null;
-    const st = { step: 0, lastDate: list[f].date, due: addDays(list[f].date, nextGap(0, learnRating)), mastered: false };
+    const st = { step: 0, lastDate: list[f].date, due: addDays(list[f].date, nextGap(0, learnRating)), mastered: false, reviews: 0 };
     for (const s of list.slice(f + 1)) {
       if (s.date <= st.lastDate) continue;
       st.lastDate = s.date;
+      st.reviews += 1;
       if (st.mastered) continue;
       if (s.rating === 'hard') {
         st.due = addDays(s.date, nextGap(st.step, 'hard'));

@@ -5,16 +5,19 @@ import { emptyState } from '../ui/fields.js';
 import { openSheet } from '../ui/sheet.js';
 import { toast } from '../ui/toast.js';
 import { state, reload, subjectById } from '../state.js';
-import { saveSemester } from '../db/repo.js';
+import { saveSemester, setMeta } from '../db/repo.js';
 import { withSemesterDefaults, RATING_LABELS } from '../model/factory.js';
 import { buildPlan } from '../model/planner.js';
 import { timerView, formatClock } from '../model/timer.js';
 import { REVIEWS } from '../model/revision.js';
 import { minutesStudiedOn } from '../model/progress.js';
 import { DEADLINE_LABELS } from '../model/validate.js';
-import { formatDate, formatMinutes, relativeDays, todayYMD, daysBetween } from '../model/time.js';
+import { formatDate, formatMinutes, relativeDays, todayYMD, daysBetween, addDays } from '../model/time.js';
 import { rerender } from '../router.js';
 import { openStartSheet } from './session-sheets.js';
+import { trackFor, statusSentence, storyFor } from './progress.js';
+import { headline } from '../model/track.js';
+import { weekStart } from '../model/story.js';
 
 const PHASE_LABELS = { keepup: 'Keeping up', exam: 'Exam mode' };
 
@@ -41,6 +44,8 @@ export function renderToday() {
   const body = [];
   const running = timerCard();
   if (running) body.push(running);
+  const story = weekStoryCard(today, semester);
+  if (story) body.push(story);
 
   if (daysBetween(today, semester.startDate) > 0) {
     body.push(h('p', { class: 'calm-note' }, `Your semester starts ${relativeDays(today, semester.startDate).toLowerCase()}. Here’s how it begins.`));
@@ -58,8 +63,8 @@ export function renderToday() {
   const doneList = doneToday(today);
   if (doneList) body.push(doneList);
 
-  const risk = riskNote(plan, today);
-  if (risk) body.push(risk);
+  const note = trackNote(plan, today);
+  if (note) body.push(note);
   if (!state.slots.length) {
     body.push(
       h(
@@ -235,20 +240,34 @@ function doneToday(today) {
   );
 }
 
-/** One gentle line when an upcoming deadline's topics don't all fit before it. */
-function riskNote(plan, today) {
-  const d = plan.atRisk
-    .map((id) => state.deadlines.find((x) => x.id === id))
-    .filter((x) => x && daysBetween(today, x.date) >= 0)
-    .sort((a, b) => a.date.localeCompare(b.date))[0];
-  if (!d) return null;
-  const subject = subjectById(d.subjectId);
+/** One calm line when a coming deadline is tight or needs more time (details on Progress). */
+function trackNote(plan, today) {
+  const worst = headline(trackFor(plan, today));
+  if (!worst) return null;
+  return h('p', { class: 'calm-note small' }, statusSentence(worst), ' ', h('a', { href: '#/progress' }, 'See progress'));
+}
+
+/** Last week's story, on the first open of a new week, until you dismiss it. */
+function weekStoryCard(today, semester) {
+  const lastWeek = addDays(weekStart(today), -7);
+  if (state.storySeen === lastWeek) return null;
+  if (addDays(lastWeek, 6) < semester.startDate) return null; // the semester hadn't started yet
+  const dismiss = async () => {
+    await setMeta('storySeen', lastWeek);
+    state.storySeen = lastWeek;
+    rerender();
+  };
   return h(
-    'p',
-    { class: 'calm-note small' },
-    `Some ${subject?.name ?? ''} topics don’t quite fit before the ${DEADLINE_LABELS[d.type].toLowerCase()}. `,
-    h('a', { href: '#/semester' }, 'A little more daily study time'),
-    ' would help.',
+    'section',
+    { class: 'card story-card story-today' },
+    h('h2', { class: 'card-title' }, 'Your week'),
+    h('div', { class: 'story' }, storyFor(lastWeek, today, true).map((line) => h('p', {}, line))),
+    h(
+      'div',
+      { class: 'story-actions' },
+      h('a', { href: '#/progress', class: 'btn btn-quiet' }, 'Read more'),
+      h('button', { type: 'button', class: 'btn btn-quiet', onclick: dismiss }, 'Got it'),
+    ),
   );
 }
 

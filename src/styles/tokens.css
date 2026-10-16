@@ -21,6 +21,10 @@
   --warn-soft: #fbefd9;
   --danger: #a4513f;
 
+  /* Chart steps (one hue, validated as ordinal steps against --surface) */
+  --chart-learn: #1f7a70;
+  --chart-review: #6fc0b2;
+
   --diff-1: #e3efe5;
   --diff-1-ink: #3d6b46;
   --diff-2: #f6ecd8;
@@ -64,6 +68,9 @@
     --warn: #e5b964;
     --warn-soft: #3a311f;
     --danger: #e5937e;
+
+    --chart-learn: #86c6bb;
+    --chart-review: #3f7a72;
 
     --diff-1: #263a2b;
     --diff-1-ink: #a9d3b1;

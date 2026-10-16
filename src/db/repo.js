@@ -46,6 +46,14 @@ export function loadSemesterData(semesterId) {
   });
 }
 
+// ---------- Small settings in the meta store ----------
+
+export async function getMeta(key) {
+  return (await get('meta', key))?.value ?? null;
+}
+
+export const setMeta = (key, value) => put('meta', { key, value });
+
 // ---------- Focus timer (at most one, kept so it survives reloads) ----------
 
 export async function getActiveTimer() {

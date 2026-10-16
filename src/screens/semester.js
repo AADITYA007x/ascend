@@ -97,7 +97,7 @@ export function renderSemester() {
 
   return {
     title: 'Semester',
-    top: topbar(s.name, { action: editBtn, subtitle: 'Your semester' }),
+    top: topbar(s.name, { back: '#/progress', action: editBtn, subtitle: 'Your semester' }),
     body: [checklist, dates, stats],
   };
 }
