@@ -25,6 +25,20 @@
   --chart-learn: #1f7a70;
   --chart-review: #6fc0b2;
 
+  /* The countdown sky: top and bottom of the gradient for each mood */
+  --sky-top-day: #9fd0e6;
+  --sky-bottom-day: #e6f2ee;
+  --sky-top-afternoon: #a9c9e0;
+  --sky-bottom-afternoon: #f4e6cf;
+  --sky-top-golden: #e9b98a;
+  --sky-bottom-golden: #f8e3bf;
+  --sky-top-dusk: #8f86b5;
+  --sky-bottom-dusk: #eeb08f;
+  --sky-top-examday: #6f6aa0;
+  --sky-bottom-examday: #f0a77c;
+  --sky-top-night: #2b3150;
+  --sky-bottom-night: #4d5478;
+
   --diff-1: #e3efe5;
   --diff-1-ink: #3d6b46;
   --diff-2: #f6ecd8;
@@ -71,6 +85,19 @@
 
     --chart-learn: #86c6bb;
     --chart-review: #3f7a72;
+
+    --sky-top-day: #31566a;
+    --sky-bottom-day: #2b3d3a;
+    --sky-top-afternoon: #3b4f66;
+    --sky-bottom-afternoon: #4a4234;
+    --sky-top-golden: #5e4532;
+    --sky-bottom-golden: #7a5a37;
+    --sky-top-dusk: #3b3557;
+    --sky-bottom-dusk: #6a4a45;
+    --sky-top-examday: #2f2b4d;
+    --sky-bottom-examday: #74503c;
+    --sky-top-night: #121629;
+    --sky-bottom-night: #252b45;
 
     --diff-1: #263a2b;
     --diff-1-ink: #a9d3b1;

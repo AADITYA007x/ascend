@@ -18,6 +18,8 @@ import { openStartSheet } from './session-sheets.js';
 import { trackFor, statusSentence, storyFor } from './progress.js';
 import { headline } from '../model/track.js';
 import { weekStart } from '../model/story.js';
+import { skyModel } from '../model/sky.js';
+import { skyBand } from '../ui/scene.js';
 
 const PHASE_LABELS = { keepup: 'Keeping up', exam: 'Exam mode' };
 
@@ -42,6 +44,8 @@ export function renderToday() {
   const plan = buildPlan({ ...state, semester, today, nowMin });
   const day = plan.days[0]?.date === today ? plan.days[0] : null;
   const body = [];
+  const sky = skyModel({ ...state, semester, today });
+  if (sky.text) body.push(skyBand(sky));
   const running = timerCard();
   if (running) body.push(running);
   const story = weekStoryCard(today, semester);

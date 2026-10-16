@@ -8,6 +8,9 @@ import { buildPlan } from '../model/planner.js';
 import { subjectProgress, overallProgress, dailyMinutes, deadlineCoverage } from '../model/stats.js';
 import { recentPace, trackStatus, headline } from '../model/track.js';
 import { weekStart, weekSummary, weekStory } from '../model/story.js';
+import { climbModel } from '../model/climb.js';
+import { skyModel } from '../model/sky.js';
+import { climbScene } from '../ui/scene.js';
 import { DEADLINE_LABELS } from '../model/validate.js';
 import { addDays, daysBetween, formatDate, formatMinutes, relativeDays, todayYMD, WEEKDAYS_SHORT, weekdayMon0 } from '../model/time.js';
 
@@ -94,6 +97,7 @@ export function renderProgress() {
     title: 'Progress',
     top,
     body: [
+      climbScene(climbModel({ ...state, semester, today }), skyModel({ ...state, semester, today }), today),
       headlineCard(statuses, all),
       comingUp(statuses, today),
       chartCard(today, semester),

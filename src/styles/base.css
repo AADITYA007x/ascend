@@ -1540,3 +1540,237 @@ select.input {
   gap: 4px;
   margin-top: 6px;
 }
+
+/* ---------- The climb and the countdown sky (Milestone 6) ---------- */
+.scene-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.scene {
+  position: relative;
+}
+
+.scene svg {
+  display: block;
+}
+
+.scene-text {
+  padding: 10px var(--pad) 14px;
+}
+
+.scene-countdown {
+  margin: 0 0 2px;
+  font-weight: 700;
+}
+
+.sky-pill {
+  display: inline-block;
+  max-width: calc(100% - 20px);
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  color: var(--text);
+  font-weight: 650;
+  font-size: 0.9rem;
+}
+
+.scene-readout {
+  margin: 0;
+}
+
+.scene-star {
+  fill: #fffaf0;
+  opacity: 0.85;
+}
+
+.scene-sun {
+  fill: var(--sun);
+}
+
+.scene-moon circle:first-child {
+  fill: #f4ead2;
+}
+
+.scene-moon-cut {
+  fill: var(--sky-top-night);
+}
+
+.scene-hills {
+  fill: var(--hill-far);
+}
+
+.scene-mountain {
+  fill: var(--accent);
+}
+
+.scene-snow {
+  fill: var(--snow);
+}
+
+.scene-trail-done,
+.scene-trail-ahead {
+  fill: none;
+  stroke: var(--surface);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.scene-trail-done {
+  stroke-width: 3;
+}
+
+.scene-trail-ahead {
+  stroke-width: 2;
+  stroke-dasharray: 0.5 6;
+  opacity: 0.8;
+}
+
+.scene-hit {
+  fill: transparent;
+}
+
+.scene-pole {
+  stroke: var(--surface);
+  stroke-width: 1.5;
+}
+
+.scene-flag {
+  fill: var(--surface);
+}
+
+.camp-reached .scene-flag,
+.camp-past .scene-flag,
+.summit-flag {
+  fill: var(--sun);
+}
+
+.scene-label-bg {
+  fill: var(--surface);
+  opacity: 0.92;
+}
+
+.scene-label {
+  fill: var(--text);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.scene-you-bg {
+  fill: var(--sun);
+}
+
+.scene-you {
+  fill: #2b2722;
+  font-weight: 700;
+}
+
+.scene-camp {
+  cursor: pointer;
+  outline: none;
+}
+
+.scene-camp.active .scene-label-bg,
+.scene-camp:focus-visible .scene-label-bg {
+  stroke: var(--sun);
+  stroke-width: 2;
+}
+
+.scene-me {
+  fill: var(--sun);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.scene-climber {
+  animation: climber-bob 2.8s ease-in-out infinite;
+}
+
+@keyframes climber-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+/* Today: the slim sky band */
+.sky-band {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 64px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  text-decoration: none;
+}
+
+.band-sky {
+  position: absolute;
+  inset: 0;
+}
+
+.sky-band .sky-pill {
+  position: relative;
+}
+
+.band-sun,
+.band-moon {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border-radius: 50%;
+  background: var(--sun);
+}
+
+.band-moon {
+  top: 22px;
+  left: auto;
+  right: 18px;
+  margin: 0;
+  background: #f4ead2;
+  box-shadow: inset -6px -2px 0 0 var(--sky-top-night);
+}
+
+.band-star {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #fffaf0;
+  opacity: 0.85;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-climber {
+    animation: none;
+  }
+}
+
+.sky-band.mood-day {
+  background: linear-gradient(var(--sky-top-day), var(--sky-bottom-day));
+}
+
+.sky-band.mood-afternoon {
+  background: linear-gradient(var(--sky-top-afternoon), var(--sky-bottom-afternoon));
+}
+
+.sky-band.mood-golden {
+  background: linear-gradient(var(--sky-top-golden), var(--sky-bottom-golden));
+}
+
+.sky-band.mood-dusk {
+  background: linear-gradient(var(--sky-top-dusk), var(--sky-bottom-dusk));
+}
+
+.sky-band.mood-examday {
+  background: linear-gradient(var(--sky-top-examday), var(--sky-bottom-examday));
+}
+
+.sky-band.mood-night {
+  background: linear-gradient(var(--sky-top-night), var(--sky-bottom-night));
+}
