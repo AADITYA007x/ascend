@@ -1,12 +1,12 @@
 // Semester screen: first-run welcome, overview with setup checklist, and the semester form.
 import { h, icon } from '../ui/dom.js';
 import { topbar } from '../ui/layout.js';
-import { field, textInput, dateInput, stepper, showMessages } from '../ui/fields.js';
+import { field, textInput, dateInput, timeInput, stepper, showMessages } from '../ui/fields.js';
 import { openSheet } from '../ui/sheet.js';
 import { toast } from '../ui/toast.js';
 import { state, reload } from '../state.js';
 import { saveSemester } from '../db/repo.js';
-import { makeSemester } from '../model/factory.js';
+import { makeSemester, withSemesterDefaults } from '../model/factory.js';
 import { validateSemester } from '../model/validate.js';
 import { semesterTotals, setupProgress } from '../model/summary.js';
 import { formatMinutes, formatDate, daysBetween, todayYMD, addDays } from '../model/time.js';
@@ -24,6 +24,7 @@ export function renderSemester() {
   if (!state.semester) return renderWelcome();
 
   const s = state.semester;
+  const settings = withSemesterDefaults(s);
   const totals = semesterTotals(state);
   const progress = setupProgress(state);
   const today = todayYMD();
@@ -47,7 +48,7 @@ export function renderSemester() {
       { class: 'muted' },
       progress.next
         ? `${progress.doneCount} of ${progress.steps.length} done. Take it one step at a time.`
-        : 'Your semester is ready. The daily planner arrives in the next update.',
+        : ['Your semester is ready. ', h('a', { href: '#/today' }, 'See today’s plan'), '.'],
     ),
     h(
       'ol',
@@ -91,6 +92,7 @@ export function renderSemester() {
       left > 0 ? `${left} days to go.` : left === 0 ? 'Last day today.' : 'This semester has ended.',
     ),
     h('p', { class: 'muted' }, `Daily study limit: ${formatMinutes(s.dailyLimitMin)}`),
+    h('p', { class: 'muted' }, `Study between ${settings.studyFrom} and ${settings.studyTo} · ${bufferLabel(settings.bufferDays)} before exams`),
   );
 
   return {
@@ -98,6 +100,10 @@ export function renderSemester() {
     top: topbar(s.name, { action: editBtn, subtitle: 'Your semester' }),
     body: [checklist, dates, stats],
   };
+}
+
+function bufferLabel(n) {
+  return n === 0 ? 'no buffer days' : `${n} buffer day${n === 1 ? '' : 's'}`;
 }
 
 function stat(label, value) {
@@ -143,7 +149,7 @@ function defaultDates() {
 }
 
 export function openSemesterSheet(existing) {
-  const s = existing ?? makeSemester({ name: '', ...defaultDates() });
+  const s = existing ? withSemesterDefaults(existing) : makeSemester({ name: '', ...defaultDates() });
   const limitStepper = stepper('dailyLimitMin', s.dailyLimitMin, {
     min: 15,
     max: 16 * 60,
@@ -164,6 +170,24 @@ export function openSemesterSheet(existing) {
     field('dailyLimitMin', 'Daily study limit', limitStepper, {
       hint: 'The most study time Ascend will plan for one day. You can change it any time.',
     }),
+    h(
+      'div',
+      { class: 'row-2' },
+      field('studyFrom', 'Study from', timeInput('studyFrom', s.studyFrom)),
+      field('studyTo', 'Study until', timeInput('studyTo', s.studyTo)),
+    ),
+    h('p', { class: 'field-hint form-hint' }, 'Ascend only plans in this window, around your classes.'),
+    field(
+      'bufferDays',
+      'Buffer days before exams',
+      stepper('bufferDays', s.bufferDays, {
+        min: 0,
+        max: 7,
+        format: (n) => (n === 0 ? 'None' : `${n} day${n === 1 ? '' : 's'}`),
+        label: 'buffer days',
+      }),
+      { hint: 'Days kept free before mid-sems and end-sems, for review. Used for new topics only if you fall behind.' },
+    ),
   );
 
   openSheet({
@@ -178,6 +202,9 @@ export function openSemesterSheet(existing) {
         startDate: String(fd.get('startDate') ?? ''),
         endDate: String(fd.get('endDate') ?? ''),
         dailyLimitMin: Number(fd.get('dailyLimitMin')),
+        studyFrom: String(fd.get('studyFrom') ?? ''),
+        studyTo: String(fd.get('studyTo') ?? ''),
+        bufferDays: Number(fd.get('bufferDays')),
       };
       const v = validateSemester(next);
       showMessages(form, v);

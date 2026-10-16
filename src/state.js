@@ -9,12 +9,13 @@ export const state = {
   topics: [],
   deadlines: [],
   slots: [],
+  sessions: [],
 };
 
 export async function reload() {
   state.semester = await getActiveSemester();
   if (!state.semester) {
-    Object.assign(state, { subjects: [], units: [], topics: [], deadlines: [], slots: [] });
+    Object.assign(state, { subjects: [], units: [], topics: [], deadlines: [], slots: [], sessions: [] });
     return state;
   }
   Object.assign(state, await loadSemesterData(state.semester.id));

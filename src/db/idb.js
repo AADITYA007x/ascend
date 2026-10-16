@@ -1,7 +1,7 @@
 // A small promise wrapper around IndexedDB. No library.
 
 const DB_NAME = 'ascend';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 // Stores and their indexes. Bump DB_VERSION and extend upgrade() for future changes.
 function upgrade(db, oldVersion) {
@@ -26,6 +26,13 @@ function upgrade(db, oldVersion) {
     const slots = db.createObjectStore('classSlots', { keyPath: 'id' });
     slots.createIndex('semesterId', 'semesterId');
     slots.createIndex('subjectId', 'subjectId');
+  }
+  if (oldVersion < 2) {
+    // Milestone 2: a log of what was studied. The plan itself is never stored.
+    const sessions = db.createObjectStore('sessions', { keyPath: 'id' });
+    sessions.createIndex('semesterId', 'semesterId');
+    sessions.createIndex('subjectId', 'subjectId');
+    sessions.createIndex('topicId', 'topicId');
   }
 }
 

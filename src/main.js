@@ -6,6 +6,7 @@ import { state, reload } from './state.js';
 import { startRouter } from './router.js';
 import { setupProgress } from './model/summary.js';
 import { h } from './ui/dom.js';
+import { renderToday } from './screens/today.js';
 import { renderSemester } from './screens/semester.js';
 import { renderSubjects } from './screens/subjects.js';
 import { renderSubject } from './screens/subject.js';
@@ -16,6 +17,7 @@ import { renderTimetable } from './screens/timetable.js';
 const needsSemester = (render) => (...args) => (state.semester ? render(...args) : renderSemester());
 
 const routes = {
+  today: { render: needsSemester(renderToday) },
   semester: { render: renderSemester },
   subjects: { render: needsSemester(renderSubjects) },
   subject: { render: needsSemester(renderSubject), tab: 'subjects' },
@@ -25,6 +27,8 @@ const routes = {
 
 function defaultRoute() {
   if (!state.semester) return 'semester';
+  // Once there are topics there is a plan to show, even if setup isn't quite finished.
+  if (state.topics.length) return 'today';
   return setupProgress(state).next ? 'semester' : 'subjects';
 }
 

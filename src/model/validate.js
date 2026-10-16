@@ -21,6 +21,7 @@ export const LIMITS = {
   estMinMax: 600,
   dailyLimitMin: 15,
   dailyLimitMax: 16 * 60,
+  bufferDaysMax: 7,
 };
 
 function result(errors, warnings = {}) {
@@ -47,6 +48,16 @@ export function validateSemester(s) {
   }
   if (!isNum(s?.dailyLimitMin) || s.dailyLimitMin < LIMITS.dailyLimitMin || s.dailyLimitMin > LIMITS.dailyLimitMax) {
     errors.dailyLimitMin = 'Choose between 15 minutes and 16 hours a day.';
+  }
+  // Planner settings (Milestone 2). Older semesters may not have them yet; defaults apply then.
+  const from = s?.studyFrom === undefined ? 7 * 60 : toMinutes(s.studyFrom);
+  const to = s?.studyTo === undefined ? 23 * 60 : toMinutes(s.studyTo);
+  if (from === null) errors.studyFrom = 'Pick when your study day starts.';
+  if (to === null) errors.studyTo = 'Pick when your study day ends.';
+  if (from !== null && to !== null && to <= from) errors.studyTo = 'The end should come after the start.';
+  const buffer = s?.bufferDays;
+  if (buffer !== undefined && (!Number.isInteger(buffer) || buffer < 0 || buffer > LIMITS.bufferDaysMax)) {
+    errors.bufferDays = `Choose between 0 and ${LIMITS.bufferDaysMax} days.`;
   }
   return result(errors);
 }

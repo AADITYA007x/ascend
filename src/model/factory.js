@@ -13,8 +13,22 @@ export function pickColor(usedColors = []) {
   return free ?? SUBJECT_COLORS[usedColors.length % SUBJECT_COLORS.length];
 }
 
+// Planner settings added in Milestone 2. Older saved semesters don't have them.
+export const SEMESTER_DEFAULTS = { dailyLimitMin: 180, studyFrom: '07:00', studyTo: '23:00', bufferDays: 2, offDays: [] };
+
 export function makeSemester(fields = {}) {
-  return { id: newId(), name: '', startDate: '', endDate: '', dailyLimitMin: 180, ...fields };
+  return { id: newId(), name: '', startDate: '', endDate: '', ...SEMESTER_DEFAULTS, offDays: [], ...fields };
+}
+
+/** The semester with any missing planner settings filled in. */
+export function withSemesterDefaults(semester) {
+  const s = { ...SEMESTER_DEFAULTS, ...semester };
+  if (!Array.isArray(s.offDays)) s.offDays = [];
+  return s;
+}
+
+export function makeSession(fields = {}) {
+  return { id: newId(), semesterId: '', subjectId: '', topicId: '', date: '', minutes: 0, finished: false, ...fields };
 }
 
 export function makeSubject(fields = {}) {

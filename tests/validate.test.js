@@ -20,6 +20,15 @@ describe('validateSemester', () => {
     expect(Object.keys(r.errors).sort()).toEqual(['dailyLimitMin', 'endDate', 'name']);
     expect(validateSemester({ ...semester, startDate: 'x' }).errors.startDate).toBeTruthy();
   });
+  it('checks the study window and buffer days when given', () => {
+    const full = { ...semester, studyFrom: '08:00', studyTo: '22:00', bufferDays: 2 };
+    expect(validateSemester(full).ok).toBe(true);
+    expect(validateSemester({ ...full, studyTo: '08:00' }).errors.studyTo).toBeTruthy();
+    expect(validateSemester({ ...full, studyFrom: '' }).errors.studyFrom).toBeTruthy();
+    expect(validateSemester({ ...full, bufferDays: 8 }).errors.bufferDays).toBeTruthy();
+    expect(validateSemester({ ...full, bufferDays: 1.5 }).errors.bufferDays).toBeTruthy();
+    expect(validateSemester({ ...full, bufferDays: 0 }).ok).toBe(true);
+  });
 });
 
 describe('validateSubject', () => {

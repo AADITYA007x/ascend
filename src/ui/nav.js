@@ -2,6 +2,7 @@
 import { h, icon } from './dom.js';
 
 const TABS = [
+  { route: 'today', label: 'Today', icon: 'sun' },
   { route: 'subjects', label: 'Subjects', icon: 'book' },
   { route: 'deadlines', label: 'Deadlines', icon: 'flag' },
   { route: 'timetable', label: 'Timetable', icon: 'clock' },

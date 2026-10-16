@@ -65,18 +65,24 @@ export function classMinutesOnDay(slots, day) {
 }
 
 /**
+ * Free minutes on one weekday between two times given in minutes (e.g. 420 → 1380).
+ * Class time outside the window is ignored.
+ */
+export function freeMinutesOnDay(slots, day, fromMin, toMin) {
+  const windowLen = Math.max(0, toMin - fromMin);
+  const ranges = slots
+    .filter((s) => s.day === day)
+    .map((s) => [Math.max(toMinutes(s.start), fromMin), Math.min(toMinutes(s.end), toMin)])
+    .filter(([s, e]) => e > s);
+  return windowLen - mergedLength(ranges);
+}
+
+/**
  * Free minutes for each weekday (Mon..Sun) inside an awake window,
  * e.g. dayStart "07:00", dayEnd "23:00". Class time outside the window is ignored.
  */
 export function freeMinutesPerDay(slots, dayStart = '07:00', dayEnd = '23:00') {
   const ws = toMinutes(dayStart);
   const we = toMinutes(dayEnd);
-  const windowLen = Math.max(0, we - ws);
-  return Array.from({ length: 7 }, (_, day) => {
-    const ranges = slots
-      .filter((s) => s.day === day)
-      .map((s) => [Math.max(toMinutes(s.start), ws), Math.min(toMinutes(s.end), we)])
-      .filter(([s, e]) => e > s);
-    return windowLen - mergedLength(ranges);
-  });
+  return Array.from({ length: 7 }, (_, day) => freeMinutesOnDay(slots, day, ws, we));
 }

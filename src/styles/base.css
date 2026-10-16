@@ -624,6 +624,28 @@ details.group > summary {
   min-height: var(--tap);
   display: flex;
   align-items: center;
+  list-style: none;
+}
+
+details.group > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A small chevron so collapsed groups look tappable. */
+details.group > summary::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  margin: -3px 0 0 10px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+details.group[open] > summary::after {
+  margin-top: 4px;
+  transform: rotate(-135deg);
 }
 
 details.past .card {
@@ -726,6 +748,89 @@ details.past .card {
 .clash-note {
   color: var(--warn);
   font-weight: 600;
+}
+
+/* ---------- Today ---------- */
+.plan-summary {
+  background: var(--accent-soft);
+  box-shadow: none;
+}
+
+.plan-total {
+  font-size: 1.35rem;
+  font-weight: 750;
+}
+
+.plan-block {
+  border-left: 5px solid var(--subject);
+}
+
+.plan-block .card-heading,
+.done-row .card-heading {
+  overflow-wrap: anywhere;
+}
+
+.rest-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.rest-card .btn-quiet {
+  margin-left: -12px;
+}
+
+.done-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  box-shadow: none;
+  background: transparent;
+  border: 1px solid var(--line);
+}
+
+.done-row .check {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--subject);
+  color: var(--surface);
+}
+
+.week-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  min-height: var(--tap);
+}
+
+.week-date {
+  flex: 1;
+  font-weight: 600;
+}
+
+.week-dots {
+  display: inline-flex;
+}
+
+.week-dots .small-dot {
+  margin-right: 3px;
+}
+
+.week-row .muted.small {
+  min-width: 76px;
+  text-align: right;
+}
+
+.form-hint {
+  margin: -6px 0 14px;
 }
 
 /* ---------- Bottom sheet ---------- */

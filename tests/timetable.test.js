@@ -7,6 +7,7 @@ import {
   overlappingIds,
   classMinutesOnDay,
   freeMinutesPerDay,
+  freeMinutesOnDay,
 } from '../src/model/timetable.js';
 
 const slot = (id, day, start, end) => ({ id, day, start, end, subjectId: 's' });
@@ -67,5 +68,11 @@ describe('class and free minutes', () => {
     ];
     const free = freeMinutesPerDay(s, '07:00', '23:00');
     expect(free).toEqual([960 - 240, 960 - 60, 960 - 30, 960, 960, 960, 960]);
+  });
+  it('gives free minutes in any window, e.g. the rest of today', () => {
+    const s = [slot('a', 0, '09:00', '13:00'), slot('b', 0, '15:00', '16:00')];
+    expect(freeMinutesOnDay(s, 0, 12 * 60, 18 * 60)).toBe(6 * 60 - 60 - 60);
+    expect(freeMinutesOnDay(s, 0, 20 * 60, 18 * 60)).toBe(0);
+    expect(freeMinutesOnDay(s, 1, 12 * 60, 18 * 60)).toBe(360);
   });
 });
