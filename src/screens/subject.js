@@ -10,6 +10,7 @@ import { makeUnit, makeTopic, DIFFICULTY_LABELS } from '../model/factory.js';
 import { validateUnit, validateTopic } from '../model/validate.js';
 import { subjectTotals, byOrder, nextOrder, moveItem } from '../model/summary.js';
 import { formatMinutes } from '../model/time.js';
+import { planningTopics } from '../model/estimate.js';
 import { rerender } from '../router.js';
 import { openSubjectSheet, creditsLabel } from './subjects.js';
 
@@ -58,7 +59,29 @@ export function renderSubject(subjectId) {
   };
 }
 
+/** Map of topicId → the estimate Ascend now plans with, for topics where your pace changed it. */
+function learnedEstimates() {
+  const map = new Map();
+  for (const t of planningTopics(state.topics, state.sessions)) if (t.estMin !== t.baseEstMin) map.set(t.id, t.estMin);
+  return map;
+}
+
+function topicTime(t, learned) {
+  const est = learned.get(t.id);
+  if (est === undefined) return h('span', { class: 'topic-time muted small' }, formatMinutes(t.estMin));
+  return h(
+    'span',
+    {
+      class: 'topic-time muted small',
+      title: `You set ${formatMinutes(t.estMin)}. Ascend plans about ${formatMinutes(est)} from your pace.`,
+      'aria-label': `About ${formatMinutes(est)}, learned from your pace (you set ${formatMinutes(t.estMin)})`,
+    },
+    `~${formatMinutes(est)}`,
+  );
+}
+
 function unitBlock(subject, unit) {
+  const learned = learnedEstimates();
   const topics = byOrder(state.topics.filter((t) => t.unitId === unit.id));
   const est = topics.reduce((sum, t) => sum + t.estMin, 0);
   const details = h(
@@ -108,7 +131,7 @@ function unitBlock(subject, unit) {
                 { type: 'button', class: 'topic-row', onclick: () => openTopicSheet(subject, unit, t) },
                 h('span', { class: 'topic-name' }, t.name),
                 h('span', { class: `pill diff-${t.difficulty}` }, DIFFICULTY_LABELS[t.difficulty]),
-                h('span', { class: 'topic-time muted small' }, formatMinutes(t.estMin)),
+                topicTime(t, learned),
               ),
             ),
           ),
@@ -209,6 +232,7 @@ function openTopicSheet(subject, unit, existing) {
   const idx = unitTopics.findIndex((x) => x.id === t.id);
   const units = byOrder(state.units.filter((u) => u.subjectId === subject.id));
 
+  const learnedEst = existing ? learnedEstimates().get(t.id) : undefined;
   const timeStepper = stepper('estMin', t.estMin, { min: 5, max: 600, step: 5, format: formatMinutes, label: 'time' });
   const presets = h(
     'div',
@@ -222,7 +246,11 @@ function openTopicSheet(subject, unit, existing) {
     'div',
     {},
     field('name', 'Topic', textInput('name', t.name, { placeholder: 'e.g. Eigenvalues and eigenvectors', maxlength: 80 })),
-    field('estMin', 'Estimated study time', timeStepper, { hint: 'A rough guess is fine. Ascend will learn as you go.' }),
+    field('estMin', 'Estimated study time', timeStepper, {
+      hint: learnedEst
+        ? `From your pace in this subject, Ascend plans about ${formatMinutes(learnedEst)}.`
+        : 'A rough guess is fine. Ascend will learn as you go.',
+    }),
     presets,
     h(
       'div',

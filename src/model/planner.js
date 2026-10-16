@@ -9,6 +9,7 @@ import { withSemesterDefaults } from './factory.js';
 import { topicProgress, minutesStudiedOn, remainingMin } from './progress.js';
 import { covers, currentDeadline, dueBy, isExam, isActiveOn, phaseOn, topicScore } from './priority.js';
 import { byOrder } from './summary.js';
+import { planningTopics } from './estimate.js';
 
 export const BLOCK = {
   max: 90, // longest block for one topic on one day
@@ -77,6 +78,8 @@ export function buildPlan({
     return empty;
   }
   const settings = withSemesterDefaults(semester);
+  // Estimates scaled by your real pace; difficulty moved by how sessions felt.
+  topics = planningTopics(topics, sessions);
   const end = settings.endDate;
   const start = today > settings.startDate ? today : settings.startDate;
   const validDeadlines = deadlines.filter((d) => isValidDate(d.date));

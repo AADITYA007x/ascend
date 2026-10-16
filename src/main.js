@@ -12,6 +12,7 @@ import { renderSubjects } from './screens/subjects.js';
 import { renderSubject } from './screens/subject.js';
 import { renderDeadlines } from './screens/deadlines.js';
 import { renderTimetable } from './screens/timetable.js';
+import { renderFocus } from './screens/focus.js';
 
 // Every screen except Semester needs a semester first.
 const needsSemester = (render) => (...args) => (state.semester ? render(...args) : renderSemester());
@@ -23,10 +24,13 @@ const routes = {
   subject: { render: needsSemester(renderSubject), tab: 'subjects' },
   deadlines: { render: needsSemester(renderDeadlines) },
   timetable: { render: needsSemester(renderTimetable) },
+  focus: { render: needsSemester(renderFocus), tab: 'today' },
 };
 
 function defaultRoute() {
   if (!state.semester) return 'semester';
+  // A focus session survives reloads and the app being closed: open straight back into it.
+  if (state.timer) return 'focus';
   // Once there are topics there is a plan to show, even if setup isn't quite finished.
   if (state.topics.length) return 'today';
   return setupProgress(state).next ? 'semester' : 'subjects';

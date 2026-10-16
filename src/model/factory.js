@@ -13,8 +13,17 @@ export function pickColor(usedColors = []) {
   return free ?? SUBJECT_COLORS[usedColors.length % SUBJECT_COLORS.length];
 }
 
-// Planner settings added in Milestone 2. Older saved semesters don't have them.
-export const SEMESTER_DEFAULTS = { dailyLimitMin: 180, studyFrom: '07:00', studyTo: '23:00', bufferDays: 2, offDays: [] };
+// Planner settings added in Milestone 2, focus lengths in Milestone 3. Older saved semesters don't have them.
+export const SEMESTER_DEFAULTS = {
+  dailyLimitMin: 180,
+  studyFrom: '07:00',
+  studyTo: '23:00',
+  bufferDays: 2,
+  offDays: [],
+  focusMin: 25,
+  breakMin: 5,
+  keepAwake: true, // keep the screen on while the focus timer runs
+};
 
 export function makeSemester(fields = {}) {
   return { id: newId(), name: '', startDate: '', endDate: '', ...SEMESTER_DEFAULTS, offDays: [], ...fields };
@@ -28,7 +37,20 @@ export function withSemesterDefaults(semester) {
 }
 
 export function makeSession(fields = {}) {
-  return { id: newId(), semesterId: '', subjectId: '', topicId: '', date: '', minutes: 0, finished: false, ...fields };
+  return {
+    id: newId(),
+    semesterId: '',
+    subjectId: '',
+    topicId: '',
+    date: '',
+    minutes: 0,
+    finished: false,
+    rating: null, // 'easy' | 'okay' | 'hard'
+    source: 'manual', // 'manual' | 'timer'
+    startedAt: null, // ms, for timer sessions
+    rounds: 0,
+    ...fields,
+  };
 }
 
 export function makeSubject(fields = {}) {
@@ -62,3 +84,4 @@ export function makeSlot(fields = {}) {
 }
 
 export const DIFFICULTY_LABELS = { 1: 'Easy', 2: 'Medium', 3: 'Hard' };
+export const RATING_LABELS = { easy: 'Easy', okay: 'Okay', hard: 'Hard' };

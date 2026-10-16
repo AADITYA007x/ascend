@@ -1,9 +1,10 @@
 // Domain-level data access. Screens talk to this, not to idb.js directly.
 // Deletes return a "snapshot" ({ storeName: [records] }) that restore() can put back (for Undo).
 
-import { tx, get, put, putMany, reqToPromise } from './idb.js';
+import { tx, get, put, putMany, del, reqToPromise } from './idb.js';
 
 const ACTIVE_KEY = 'activeSemesterId';
+const TIMER_KEY = 'activeTimer';
 
 // ---------- Semester ----------
 
@@ -42,6 +43,24 @@ export function loadSemesterData(semesterId) {
       slots,
       sessions,
     };
+  });
+}
+
+// ---------- Focus timer (at most one, kept so it survives reloads) ----------
+
+export async function getActiveTimer() {
+  return (await get('meta', TIMER_KEY))?.value ?? null;
+}
+
+export const saveActiveTimer = (timer) => put('meta', { key: TIMER_KEY, value: timer });
+export const clearActiveTimer = () => del('meta', TIMER_KEY);
+
+/** Saves the session and clears the timer together, so a finished timer can't be saved twice. */
+export function saveTimerSession(session) {
+  return tx(['sessions', 'meta'], 'readwrite', (t) => {
+    t.objectStore('sessions').put(session);
+    t.objectStore('meta').delete(TIMER_KEY);
+    return session;
   });
 }
 

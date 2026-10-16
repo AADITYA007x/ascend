@@ -1,17 +1,19 @@
 // Today: the day's study plan, built fresh from the semester on every render.
 import { h, icon } from '../ui/dom.js';
 import { topbar } from '../ui/layout.js';
-import { field, stepper, chips, emptyState } from '../ui/fields.js';
+import { emptyState } from '../ui/fields.js';
 import { openSheet } from '../ui/sheet.js';
 import { toast } from '../ui/toast.js';
 import { state, reload, subjectById } from '../state.js';
-import { saveSession, deleteSession, saveSemester } from '../db/repo.js';
-import { makeSession, withSemesterDefaults } from '../model/factory.js';
+import { saveSemester } from '../db/repo.js';
+import { withSemesterDefaults, RATING_LABELS } from '../model/factory.js';
 import { buildPlan } from '../model/planner.js';
+import { timerView, formatClock } from '../model/timer.js';
 import { minutesStudiedOn } from '../model/progress.js';
 import { DEADLINE_LABELS } from '../model/validate.js';
 import { formatDate, formatMinutes, relativeDays, todayYMD, daysBetween } from '../model/time.js';
 import { rerender } from '../router.js';
+import { openStartSheet } from './session-sheets.js';
 
 const PHASE_LABELS = { keepup: 'Keeping up', exam: 'Exam mode' };
 
@@ -36,6 +38,8 @@ export function renderToday() {
   const plan = buildPlan({ ...state, semester, today, nowMin });
   const day = plan.days[0]?.date === today ? plan.days[0] : null;
   const body = [];
+  const running = timerCard();
+  if (running) body.push(running);
 
   if (daysBetween(today, semester.startDate) > 0) {
     body.push(h('p', { class: 'calm-note' }, `Your semester starts ${relativeDays(today, semester.startDate).toLowerCase()}. Here’s how it begins.`));
@@ -141,7 +145,7 @@ function todayBlocks(day, { plan, semester, today, studied, isOff }) {
         { class: 'muted small' },
         `${day.items.length} block${day.items.length === 1 ? '' : 's'}`,
         studied ? ` · ${formatMinutes(studied)} done already` : '',
-        ' · tap a block when you’ve studied it',
+        ' · tap a block to start',
       ),
     ),
   );
@@ -159,7 +163,7 @@ function blockCard(item, today) {
       type: 'button',
       class: 'card card-link plan-block',
       style: { '--subject': subject?.color ?? 'var(--accent)' },
-      onclick: () => openLogSheet(item, topic),
+      onclick: () => openStartSheet(item),
     },
     h('span', { class: 'subject-dot', 'aria-hidden': 'true' }),
     h(
@@ -200,7 +204,13 @@ function doneToday(today) {
             'span',
             { class: 'card-main' },
             h('span', { class: 'card-heading' }, topic?.name ?? 'Topic'),
-            h('span', { class: 'muted small' }, `${formatMinutes(s.minutes)} · ${s.finished ? 'finished' : 'more to go'}`),
+            h(
+              'span',
+              { class: 'muted small' },
+              [formatMinutes(s.minutes), s.finished ? 'finished' : 'more to go', RATING_LABELS[s.rating]?.toLowerCase()]
+                .filter(Boolean)
+                .join(' · '),
+            ),
           ),
         );
       }),
@@ -253,55 +263,34 @@ function weekAhead(days, today, startedToday) {
   );
 }
 
-function openLogSheet(item, topic) {
-  const minutes = stepper('minutes', item.minutes, {
-    min: 5,
-    max: 600,
-    step: 5,
-    format: formatMinutes,
-    label: 'study time',
-  });
-  const status = chips(
-    'status',
-    [
-      { value: 'finished', label: 'Finished the topic' },
-      { value: 'partial', label: 'More to go' },
-    ],
-    item.part === item.parts ? 'finished' : 'partial',
-    { label: 'How far did you get?' },
+/** "Focus in progress" card with a live countdown, while a timer runs. */
+function timerCard() {
+  const t = state.timer;
+  if (!t) return null;
+  const topic = state.topics.find((x) => x.id === t.topicId);
+  const subject = subjectById(t.subjectId);
+  const line = h('span', { class: 'muted small' });
+  const card = h(
+    'a',
+    { href: '#/focus', class: 'card card-link running-card', style: { '--subject': subject?.color ?? 'var(--accent)' } },
+    icon('clock', 22),
+    h('span', { class: 'card-main' }, h('span', { class: 'card-heading' }, topic?.name ?? 'Focus session'), line),
+    h('span', { class: 'pill' }, 'Return'),
   );
-  openSheet({
-    title: topic?.name ?? 'How did it go?',
-    body: h(
-      'div',
-      {},
-      field('minutes', 'Time studied', minutes),
-      h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'How far did you get?'), status),
-    ),
-    submitLabel: 'Save',
-    onSubmit: async (form) => {
-      const fd = new FormData(form);
-      const session = makeSession({
-        semesterId: state.semester.id,
-        subjectId: item.subjectId,
-        topicId: item.topicId,
-        date: todayYMD(),
-        minutes: Number(fd.get('minutes')),
-        finished: fd.get('status') === 'finished',
-      });
-      await saveSession(session);
-      await reload();
-      toast(session.finished ? 'Nice work. Your plan is updated.' : 'Saved. The rest is planned ahead.', {
-        actionLabel: 'Undo',
-        onAction: async () => {
-          await deleteSession(session.id);
-          await reload();
-          rerender();
-        },
-      });
-      rerender();
-    },
-  });
+  const update = () => {
+    if (!state.timer) return;
+    const v = timerView(state.timer, Date.now());
+    const phase = v.phase === 'focus' ? 'Focus' : 'Break';
+    line.textContent =
+      v.status === 'ended'
+        ? `${phase} time is up`
+        : v.status === 'paused'
+          ? `${phase} paused · ${formatClock(v.remainingMs)} left`
+          : `${phase} · ${formatClock(v.remainingMs)} left`;
+  };
+  update();
+  const interval = setInterval(() => (card.isConnected ? update() : clearInterval(interval)), 1000);
+  return card;
 }
 
 function takeDayOff(today) {

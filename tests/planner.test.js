@@ -207,7 +207,7 @@ describe('reshuffle', () => {
   });
   it('finishing a topic removes it; partial study shrinks it', () => {
     const sessions = [
-      { topicId: 'A-u1-t1', date: day(0), minutes: 40, finished: true },
+      { topicId: 'A-u1-t1', date: day(0), minutes: 60, finished: true },
       { topicId: 'A-u1-t2', date: day(0), minutes: 20, finished: false },
     ];
     const p = plan({ data, semester: sem, sessions, today: day(1) });
@@ -257,5 +257,22 @@ describe('overload and edges', () => {
   it('reports the phase for today', () => {
     expect(plan().phase).toBe('keepup');
     expect(plan({ today: day(30) }).phase).toBe('exam');
+  });
+});
+
+describe('learning from sessions', () => {
+  const s = (topicId, minutes, fields = {}) => ({ topicId, subjectId: topicId[0], date: day(-1), minutes, finished: false, rating: null, ...fields });
+
+  it('a topic rated hard comes before an otherwise equal one', () => {
+    const data = merge(subject('A', [[60]]), subject('B', [[60]]));
+    const opts = { data, semester: semester({ dailyLimitMin: 60 }) };
+    expect(plan({ ...opts, sessions: [s('B-u1-t1', 10)] }).days[0].items[0].topicId).toBe('A-u1-t1');
+    expect(plan({ ...opts, sessions: [s('B-u1-t1', 10, { rating: 'hard' })] }).days[0].items[0].topicId).toBe('B-u1-t1');
+  });
+  it('a slow pace gives the rest of that subject more time', () => {
+    const data = subject('A', [[60, 60, 60]]);
+    expect(totalPlanned(plan({ data, sessions: [s('A-u1-t1', 60, { finished: true })] }))).toBe(120);
+    // pace = (150 + 90) / (60 + 90) = 1.6 → each 60 min topic becomes 95 min
+    expect(totalPlanned(plan({ data, sessions: [s('A-u1-t1', 150, { finished: true })] }))).toBe(190);
   });
 });
