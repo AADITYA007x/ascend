@@ -9,6 +9,7 @@ import { saveSemester } from '../db/repo.js';
 import { withSemesterDefaults, RATING_LABELS } from '../model/factory.js';
 import { buildPlan } from '../model/planner.js';
 import { timerView, formatClock } from '../model/timer.js';
+import { REVIEWS } from '../model/revision.js';
 import { minutesStudiedOn } from '../model/progress.js';
 import { DEADLINE_LABELS } from '../model/validate.js';
 import { formatDate, formatMinutes, relativeDays, todayYMD, daysBetween } from '../model/time.js';
@@ -135,6 +136,7 @@ function todayBlocks(day, { plan, semester, today, studied, isOff }) {
   }
 
   const total = day.items.reduce((s, it) => s + it.minutes, 0);
+  const reviews = day.items.filter((it) => it.kind === 'review').length;
   out.push(
     h(
       'section',
@@ -144,6 +146,7 @@ function todayBlocks(day, { plan, semester, today, studied, isOff }) {
         'p',
         { class: 'muted small' },
         `${day.items.length} block${day.items.length === 1 ? '' : 's'}`,
+        reviews ? ` · ${reviews} review${reviews === 1 ? '' : 's'}` : '',
         studied ? ` · ${formatMinutes(studied)} done already` : '',
         ' · tap a block to start',
       ),
@@ -157,11 +160,12 @@ function blockCard(item, today) {
   const topic = state.topics.find((t) => t.id === item.topicId);
   const subject = subjectById(item.subjectId);
   const partLabel = item.parts > 1 ? ` (${item.part}/${item.parts})` : '';
+  const isReview = item.kind === 'review';
   return h(
     'button',
     {
       type: 'button',
-      class: 'card card-link plan-block',
+      class: `card card-link plan-block${isReview ? ' review-block' : ''}`,
       style: { '--subject': subject?.color ?? 'var(--accent)' },
       onclick: () => openStartSheet(item),
     },
@@ -169,8 +173,8 @@ function blockCard(item, today) {
     h(
       'span',
       { class: 'card-main' },
-      h('span', { class: 'card-heading' }, topic?.name ?? 'Topic', partLabel),
-      h('span', { class: 'muted small' }, `${subject?.name ?? ''} · ${reason(item, today)}`),
+      h('span', { class: 'card-heading' }, isReview ? h('span', { class: 'review-tag' }, 'Review') : null, topic?.name ?? 'Topic', partLabel),
+      h('span', { class: 'muted small' }, `${subject?.name ?? ''} · ${isReview ? reviewReason(item) : reason(item, today)}`),
     ),
     h('span', { class: 'pill' }, formatMinutes(item.minutes)),
   );
@@ -181,6 +185,14 @@ function reason(item, today) {
   const d = item.deadlineId && state.deadlines.find((x) => x.id === item.deadlineId);
   if (d) return `${DEADLINE_LABELS[d.type]} ${relativeDays(today, d.date).toLowerCase()}`;
   return state.units.find((u) => u.id === item.unitId)?.name ?? 'Keeping up';
+}
+
+/** "Worth another look" for weak topics, "Before the mid-sem" on buffer days, else "Review 2 of 4". */
+function reviewReason(item) {
+  if (item.weak) return 'Worth another look';
+  const d = item.forExam && state.deadlines.find((x) => x.id === item.forExam);
+  if (d) return `Before the ${DEADLINE_LABELS[d.type].toLowerCase()}`;
+  return item.review ? `Review ${item.review} of ${REVIEWS}` : 'A look back';
 }
 
 function doneToday(today) {
@@ -207,7 +219,12 @@ function doneToday(today) {
             h(
               'span',
               { class: 'muted small' },
-              [formatMinutes(s.minutes), s.finished ? 'finished' : 'more to go', RATING_LABELS[s.rating]?.toLowerCase()]
+              [
+                s.kind === 'revision' ? 'review' : null,
+                formatMinutes(s.minutes),
+                s.kind === 'revision' ? null : s.finished ? 'finished' : 'more to go',
+                RATING_LABELS[s.rating]?.toLowerCase(),
+              ]
                 .filter(Boolean)
                 .join(' · '),
             ),

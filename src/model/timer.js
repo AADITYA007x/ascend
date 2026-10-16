@@ -22,8 +22,8 @@ export function startTimer({ topicId, subjectId, plannedMin = 0, focusMin = TIME
     topicId,
     subjectId,
     plannedMin,
-    focusMin: clampLen(focusMin, TIMER.maxFocus),
-    breakMin: clampLen(breakMin, TIMER.maxBreak),
+    focusMin: clampLen(focusMin, TIMER.minLen, TIMER.maxFocus),
+    breakMin: clampLen(breakMin, 0, TIMER.maxBreak), // 0 = no break (e.g. a short review)
     phase: 'focus',
     phaseStart: now,
     pausedAt: null,
@@ -34,9 +34,9 @@ export function startTimer({ topicId, subjectId, plannedMin = 0, focusMin = TIME
   };
 }
 
-function clampLen(n, max) {
+function clampLen(n, min, max) {
   const v = Math.round(Number(n) || 0);
-  return Math.min(max, Math.max(TIMER.minLen, v));
+  return Math.min(max, Math.max(min, v));
 }
 
 const phaseLengthMs = (t) => (t.phase === 'focus' ? t.focusMin : t.breakMin) * MIN;

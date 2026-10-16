@@ -45,6 +45,7 @@ export function makeSession(fields = {}) {
     date: '',
     minutes: 0,
     finished: false,
+    kind: 'learn', // 'learn' | 'revision'
     rating: null, // 'easy' | 'okay' | 'hard'
     source: 'manual', // 'manual' | 'timer'
     startedAt: null, // ms, for timer sessions

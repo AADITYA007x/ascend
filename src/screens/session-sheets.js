@@ -9,6 +9,7 @@ import { state, reload, subjectById } from '../state.js';
 import { saveSession, saveTimerSession, deleteSession, saveActiveTimer, saveSemester } from '../db/repo.js';
 import { makeSession, withSemesterDefaults, RATING_LABELS } from '../model/factory.js';
 import { startTimer, TIMER } from '../model/timer.js';
+import { REVIEWS } from '../model/revision.js';
 import { formatMinutes, todayYMD } from '../model/time.js';
 import { navigate, rerender } from '../router.js';
 
@@ -32,11 +33,13 @@ function toggle(name, label, checked, hint) {
 
 /**
  * Tap on a plan block: start a focus timer (the main action), or log time studied without one.
- * item: { topicId, subjectId, minutes, part, parts }
+ * item: a plan item { kind, topicId, subjectId, minutes, part, parts, review }
  */
 export function openStartSheet(item) {
   const topic = topicById(item.topicId);
   const subject = subjectById(item.subjectId);
+  const isReview = item.kind === 'review';
+  const kind = isReview ? 'revision' : 'learn';
   const logInstead = h(
     'button',
     {
@@ -45,7 +48,7 @@ export function openStartSheet(item) {
       onclick: async () => {
         sheet.close();
         await sheet.closed;
-        openLogSheet({ ...item, minutes: item.minutes, finished: item.part === item.parts });
+        openLogSheet({ ...item, kind, minutes: item.minutes, finished: !isReview && item.part === item.parts });
       },
     },
     'I studied this already',
@@ -65,21 +68,29 @@ export function openStartSheet(item) {
   }
 
   const semester = withSemesterDefaults(state.semester);
-  const preset = LENGTHS.find((l) => l.focus === semester.focusMin && l.brk === semester.breakMin)?.value ?? 'custom';
-  const focusStep = stepper('focusMin', semester.focusMin, { min: 5, max: TIMER.maxFocus, step: 5, format: formatMinutes, label: 'focus time' });
-  const breakStep = stepper('breakMin', semester.breakMin, { min: 1, max: 30, step: 1, format: formatMinutes, label: 'break time' });
+  // A review is short: by default one round of its own length, with no break.
+  const lengths = isReview
+    ? [{ value: 'review', label: `Just this (${formatMinutes(item.minutes)})`, focus: item.minutes, brk: 0 }, ...LENGTHS]
+    : LENGTHS;
+  const preset = isReview
+    ? 'review'
+    : (LENGTHS.find((l) => l.focus === semester.focusMin && l.brk === semester.breakMin)?.value ?? 'custom');
+  const startFocusMin = isReview ? item.minutes : semester.focusMin;
+  const startBreakMin = isReview ? 0 : semester.breakMin;
+  const focusStep = stepper('focusMin', startFocusMin, { min: 5, max: TIMER.maxFocus, step: 5, format: formatMinutes, label: 'focus time' });
+  const breakStep = stepper('breakMin', startBreakMin, { min: 0, max: 30, step: 1, format: formatMinutes, label: 'break time' });
   const custom = h('div', { class: 'custom-lengths', hidden: preset !== 'custom' }, field('focusMin', 'Focus', focusStep), field('breakMin', 'Break', breakStep));
   const lengthChips = chips(
     'length',
-    LENGTHS.map(({ value, label }) => ({ value, label })),
+    lengths.map(({ value, label }) => ({ value, label })),
     preset,
     { label: 'Focus and break length' },
   );
   lengthChips.addEventListener('change', (e) => {
-    const l = LENGTHS.find((x) => x.value === e.target.value);
+    const l = lengths.find((x) => x.value === e.target.value);
     if (!l) return;
     custom.hidden = l.value !== 'custom';
-    if (l.focus) {
+    if (l.focus !== undefined) {
       focusStep.setValue(l.focus);
       breakStep.setValue(l.brk);
     }
@@ -91,7 +102,9 @@ export function openStartSheet(item) {
     h(
       'p',
       { class: 'muted start-meta' },
-      `${subject?.name ?? ''} · ${formatMinutes(item.minutes)} planned${item.parts > 1 ? ` (part ${item.part} of ${item.parts})` : ''}`,
+      isReview
+        ? `${subject?.name ?? ''} · ${item.review ? `review ${item.review} of ${REVIEWS}` : 'a look back before the exam'}`
+        : `${subject?.name ?? ''} · ${formatMinutes(item.minutes)} planned${item.parts > 1 ? ` (part ${item.part} of ${item.parts})` : ''}`,
     ),
     h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Focus / break (minutes)'), lengthChips),
     custom,
@@ -100,7 +113,7 @@ export function openStartSheet(item) {
   );
 
   const sheet = openSheet({
-    title: topic?.name ?? 'Focus',
+    title: isReview ? `Review: ${topic?.name ?? 'topic'}` : (topic?.name ?? 'Focus'),
     body,
     submitLabel: 'Start focus',
     extraActions: [logInstead],
@@ -114,11 +127,14 @@ export function openStartSheet(item) {
       const timer = {
         ...startTimer({ topicId: item.topicId, subjectId: item.subjectId, plannedMin: item.minutes, focusMin, breakMin }, Date.now()),
         keepAwake,
-        finishes: item.part === item.parts, // this block was planned to finish the topic
+        kind,
+        finishes: !isReview && item.part === item.parts, // this block was planned to finish the topic
       };
       await saveActiveTimer(timer);
-      if (focusMin !== semester.focusMin || breakMin !== semester.breakMin || keepAwake !== semester.keepAwake) {
-        await saveSemester({ ...state.semester, focusMin, breakMin, keepAwake });
+      // Remember your usual lengths (a review's own length isn't one of them).
+      const remember = fd.get('length') === 'review' ? { focusMin: semester.focusMin, breakMin: semester.breakMin } : { focusMin, breakMin };
+      if (remember.focusMin !== semester.focusMin || remember.breakMin !== semester.breakMin || keepAwake !== semester.keepAwake) {
+        await saveSemester({ ...state.semester, ...remember, keepAwake });
       }
       await reload();
       return () => navigate('focus');
@@ -130,12 +146,14 @@ export function openStartSheet(item) {
 /**
  * Log a session and rate it. Used after a focus timer (with the real minutes filled in)
  * and for time studied without the timer.
- * entry: { topicId, subjectId, minutes, finished, source?, startedAt?, rounds?, date? }
+ * entry: { topicId, subjectId, minutes, finished, kind?, source?, startedAt?, rounds?, date? }
+ * A review ('revision') only asks how it felt and how long it took.
  * Returns the sheet; opts.afterClose runs once a saved sheet has closed (a safe place to navigate).
  */
 export function openLogSheet(entry, { afterClose } = {}) {
   const topic = topicById(entry.topicId);
   const fromTimer = entry.source === 'timer';
+  const isReview = entry.kind === 'revision';
   const minutes = stepper('minutes', Math.max(1, entry.minutes), {
     min: 1,
     max: 600,
@@ -149,23 +167,25 @@ export function openLogSheet(entry, { afterClose } = {}) {
     'okay',
     { label: 'How did it feel?' },
   );
-  const status = chips(
-    'status',
-    [
-      { value: 'finished', label: 'Finished the topic' },
-      { value: 'partial', label: 'More to go' },
-    ],
-    entry.finished ? 'finished' : 'partial',
-    { label: 'How far did you get?' },
-  );
+  const status = isReview
+    ? null
+    : chips(
+        'status',
+        [
+          { value: 'finished', label: 'Finished the topic' },
+          { value: 'partial', label: 'More to go' },
+        ],
+        entry.finished ? 'finished' : 'partial',
+        { label: 'How far did you get?' },
+      );
 
   return openSheet({
-    title: topic?.name ?? 'How did it go?',
+    title: isReview ? `Review: ${topic?.name ?? 'topic'}` : (topic?.name ?? 'How did it go?'),
     body: h(
       'div',
       {},
       h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'How did it feel?'), rating),
-      h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'How far did you get?'), status),
+      status ? h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'How far did you get?'), status) : null,
       field('minutes', fromTimer ? 'Focus time' : 'Time studied', minutes, {
         hint: fromTimer ? 'From the timer. Change it if you kept going after the bell.' : null,
       }),
@@ -179,7 +199,8 @@ export function openLogSheet(entry, { afterClose } = {}) {
         topicId: entry.topicId,
         date: entry.date ?? todayYMD(),
         minutes: Number(fd.get('minutes')),
-        finished: fd.get('status') === 'finished',
+        kind: isReview ? 'revision' : 'learn',
+        finished: !isReview && fd.get('status') === 'finished',
         rating: String(fd.get('rating') ?? '') || null,
         source: fromTimer ? 'timer' : 'manual',
         startedAt: entry.startedAt ?? null,
@@ -188,7 +209,12 @@ export function openLogSheet(entry, { afterClose } = {}) {
       if (fromTimer) await saveTimerSession(session);
       else await saveSession(session);
       await reload();
-      toast(session.finished ? 'Nice work. Your plan is updated.' : 'Saved. The rest is planned ahead.', {
+      const message = isReview
+        ? 'Reviewed. The next look is planned.'
+        : session.finished
+          ? 'Nice work. Your plan is updated.'
+          : 'Saved. The rest is planned ahead.';
+      toast(message, {
         actionLabel: 'Undo',
         onAction: async () => {
           await deleteSession(session.id);

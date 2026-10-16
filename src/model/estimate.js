@@ -13,7 +13,7 @@ export const ESTIMATE = {
 export const RATING_SHIFT = { easy: -1, okay: 0, hard: 1 };
 
 /** Sessions oldest first: by date, then start time. Manual logs without a start time keep their order. */
-function chronological(sessions) {
+export function chronological(sessions) {
   return sessions
     .map((s, i) => ({ s, i }))
     .sort((a, b) => a.s.date.localeCompare(b.s.date) || (a.s.startedAt ?? 0) - (b.s.startedAt ?? 0) || a.i - b.i)

@@ -52,7 +52,10 @@ function plan({ data = subject('A', [[60, 60]]), today = START, ...rest } = {}) 
   return buildPlan({ semester: semester(), deadlines: [], slots: [], sessions: [], today, ...data, ...rest });
 }
 
-const allItems = (p) => p.days.flatMap((d) => d.items.map((it) => ({ ...it, date: d.date })));
+// New work only; reviews (Milestone 4) have their own helper.
+const learnOf = (d) => d.items.filter((it) => it.kind === 'learn');
+const allItems = (p) => p.days.flatMap((d) => learnOf(d).map((it) => ({ ...it, date: d.date })));
+const allReviews = (p) => p.days.flatMap((d) => d.items.filter((it) => it.kind === 'review').map((it) => ({ ...it, date: d.date })));
 const planned = (p, topicId) => allItems(p).filter((it) => it.topicId === topicId);
 const totalPlanned = (p) => allItems(p).reduce((s, it) => s + it.minutes, 0);
 
@@ -170,13 +173,13 @@ describe('priority and the deadline guard', () => {
 });
 
 describe('buffer days', () => {
-  it('stay free when there is room, and are marked on the plan', () => {
+  it('stay free of new work when there is room, and are marked on the plan', () => {
     const data = merge(subject('A', [[60]]), subject('B', [[90, 90, 90, 90, 90, 90]]));
     const mid = deadline({ id: 'mid', type: 'midsem', date: day(10) });
     const p = plan({ data, deadlines: [mid] });
     const buffers = p.days.filter((d) => d.buffer);
     expect(buffers.map((d) => d.date)).toEqual([day(8), day(9)]);
-    expect(buffers.every((d) => d.bufferFor === 'mid' && d.items.length === 0)).toBe(true);
+    expect(buffers.every((d) => d.bufferFor === 'mid' && learnOf(d).length === 0)).toBe(true);
     expect(p.atRisk).toEqual([]);
   });
   it('are used for exam work only when you are behind', () => {
@@ -185,8 +188,8 @@ describe('buffer days', () => {
     const p = plan({ data, deadlines: [mid], semester: semester({ dailyLimitMin: 60 }) });
     // Due by day 2: three topics fit, two spill into the buffer days 3 and 4.
     expect(p.days[3].buffer && p.days[4].buffer).toBe(true);
-    expect(p.days[3].items.map((it) => it.overdue)).toEqual([true]);
-    expect(p.days[4].items).toHaveLength(1);
+    expect(learnOf(p.days[3]).map((it) => it.overdue)).toEqual([true]);
+    expect(learnOf(p.days[4])).toHaveLength(1);
     expect(p.atRisk).toEqual(['mid']);
     expect(p.unscheduled).toEqual([]);
   });
@@ -274,5 +277,78 @@ describe('learning from sessions', () => {
     expect(totalPlanned(plan({ data, sessions: [s('A-u1-t1', 60, { finished: true })] }))).toBe(120);
     // pace = (150 + 90) / (60 + 90) = 1.6 → each 60 min topic becomes 95 min
     expect(totalPlanned(plan({ data, sessions: [s('A-u1-t1', 150, { finished: true })] }))).toBe(190);
+  });
+});
+
+describe('spaced revision', () => {
+  const done = (topicId, date = day(-1), fields = {}) => ({ topicId, subjectId: topicId[0], date, minutes: 60, finished: true, rating: null, ...fields });
+  const reviewsOn = (p, n) => p.days[n].items.filter((it) => it.kind === 'review');
+
+  it('a topic finished yesterday is reviewed today, before new work', () => {
+    const p = plan({ data: subject('A', [[60, 60, 60]]), sessions: [done('A-u1-t1')] });
+    const [first, second] = p.days[0].items;
+    expect(first).toMatchObject({ kind: 'review', topicId: 'A-u1-t1', review: 1, minutes: 15, weak: false });
+    expect(second.kind).toBe('learn');
+  });
+  it('the coming reviews are 1, 3, 7 and 21 days apart, then the topic is mastered', () => {
+    const p = plan({ data: subject('A', [[60]]), sessions: [done('A-u1-t1')] });
+    expect(allReviews(p).map((r) => [r.date, r.review])).toEqual([
+      [day(0), 1],
+      [day(3), 2],
+      [day(10), 3],
+      [day(31), 4],
+    ]);
+  });
+  it('a weak topic is reviewed first, and for a little longer', () => {
+    const sessions = [done('A-u1-t1'), done('A-u1-t2', day(-1), { rating: 'hard' })];
+    const reviews = reviewsOn(plan({ data: subject('A', [[60, 60]]), sessions }), 0);
+    expect(reviews.map((r) => [r.topicId, r.weak, r.minutes])).toEqual([
+      ['A-u1-t2', true, 25],
+      ['A-u1-t1', false, 15],
+    ]);
+  });
+  it('reviews take at most their share of the day, but one always fits', () => {
+    const data = merge(subject('A', [[60, 60, 60, 60, 60, 60]]), subject('B', [[90, 90, 90, 90]]));
+    const sessions = data.topics.filter((t) => t.subjectId === 'A').map((t) => done(t.id));
+    const roomy = plan({ data, sessions }); // 120 min: 30% = 36 → two 15-min reviews
+    expect(reviewsOn(roomy, 0)).toHaveLength(2);
+    expect(learnOf(roomy.days[0]).length).toBeGreaterThan(0);
+    const tight = plan({ data, sessions, semester: semester({ dailyLimitMin: 20 }) });
+    expect(reviewsOn(tight, 0)).toHaveLength(1);
+  });
+  it('a topic the plan finishes today comes back tomorrow', () => {
+    const p = plan({ data: subject('A', [[60]]), semester: semester({ dailyLimitMin: 60 }) });
+    expect(allReviews(p)[0]).toMatchObject({ date: day(1), topicId: 'A-u1-t1', review: 1 });
+  });
+  it('buffer days review the exam’s topics, weakest first', () => {
+    const data = merge(subject('A', [[60, 60]]), subject('B', [[60]]));
+    const sessions = [done('A-u1-t1', day(-1), { rating: 'hard' }), done('A-u1-t2'), done('B-u1-t1')];
+    const mid = deadline({ id: 'mid', subjectId: 'A', type: 'midsem', date: day(10) });
+    const p = plan({ data, sessions, deadlines: [mid] });
+    expect(p.days[8].buffer).toBe(true);
+    expect(reviewsOn(p, 8).map((r) => [r.topicId, r.forExam])).toEqual([
+      ['A-u1-t1', 'mid'],
+      ['A-u1-t2', 'mid'],
+    ]);
+    expect(reviewsOn(p, 9).filter((r) => r.forExam)).toEqual([]); // once per exam
+  });
+  it('when a deadline is tight, reviews only get time new work doesn’t need', () => {
+    const data = merge(subject('A', [[60]]), subject('B', [[60, 60]]));
+    const quiz = deadline({ id: 'quiz', subjectId: 'B', date: day(1), unitIds: ['B-u1'] });
+    const p = plan({ data, sessions: [done('A-u1-t1')], deadlines: [quiz], semester: semester({ dailyLimitMin: 60 }) });
+    expect(reviewsOn(p, 0)).toEqual([]);
+    expect(allItems(p).filter((it) => it.subjectId === 'B').every((it) => it.date <= day(1))).toBe(true);
+    expect(p.atRisk).toEqual([]);
+    expect(allReviews(p)[0]).toMatchObject({ date: day(2), topicId: 'A-u1-t1' });
+  });
+  it('a missed review stays due and is marked overdue', () => {
+    const p = plan({ data: subject('A', [[60]]), sessions: [done('A-u1-t1')], today: day(2) });
+    expect(reviewsOn(p, 0)).toEqual([expect.objectContaining({ topicId: 'A-u1-t1', review: 1, overdue: true })]);
+  });
+  it('a real review moves the next one along', () => {
+    const sessions = [done('A-u1-t1'), { topicId: 'A-u1-t1', date: day(0), minutes: 15, finished: false, rating: 'easy' }];
+    const p = plan({ data: subject('A', [[60]]), sessions, today: day(1) });
+    // Reviewed on day 0 rated easy: next gap 3 × 1.5 → 5 days.
+    expect(allReviews(p)[0]).toMatchObject({ date: day(5), review: 2 });
   });
 });

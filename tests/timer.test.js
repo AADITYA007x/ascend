@@ -27,6 +27,10 @@ describe('startTimer', () => {
     expect(start({ focusMin: 50, breakMin: 10 })).toMatchObject({ focusMin: 50, breakMin: 10 });
     expect(start({ focusMin: 0, breakMin: 999 })).toMatchObject({ focusMin: TIMER.minLen, breakMin: TIMER.maxBreak });
   });
+  it('allows no break at all', () => {
+    expect(start({ focusMin: 15, breakMin: 0 }).breakMin).toBe(0);
+    expect(start({ breakMin: -3 }).breakMin).toBe(0);
+  });
 });
 
 describe('timerView', () => {

@@ -10,6 +10,7 @@ import { topicProgress, minutesStudiedOn, remainingMin } from './progress.js';
 import { covers, currentDeadline, dueBy, isExam, isActiveOn, phaseOn, topicScore } from './priority.js';
 import { byOrder } from './summary.js';
 import { planningTopics } from './estimate.js';
+import { REVISION, REVIEWS, nextGap, isWeak, weakness, revisionMinutes, revisionStates, topicRatings } from './revision.js';
 
 export const BLOCK = {
   max: 90, // longest block for one topic on one day
@@ -54,9 +55,13 @@ export function blockSize(remaining, left, minBlock = BLOCK.min) {
  * Builds the plan from max(today, semester start) to the semester's last day.
  * nowMin (minutes since midnight) trims today's free time to what is left of the day.
  *
+ * Each day starts with reviews of finished topics (weak ones first), within a share of the day,
+ * then new work. Planned reviews count as "okay", so the coming days show the 1 → 3 → 7 → 21 chain.
+ *
  * Returns {
- *   days: [{ date, phase, capacity, buffer, bufferFor, items: [{ topicId, subjectId, unitId, minutes,
- *            part, parts, deadlineId, dueBy, overdue }] }],
+ *   days: [{ date, phase, capacity, buffer, bufferFor, items: [{ kind: 'review' | 'learn', topicId,
+ *            subjectId, unitId, minutes, part, parts, deadlineId, dueBy, overdue,
+ *            review (1–4, null once mastered), weak, forExam }] }],
  *   unscheduled: [{ topicId, minutes }],  // work that doesn't fit before the semester ends
  *   atRisk: [deadlineId],                 // deadlines whose topics don't all fit before them
  *   phase,                                // today's phase
@@ -127,6 +132,42 @@ export function buildPlan({
     }
   }
 
+  // ---- Reviews: finished topics come back after about 1, 3, 7 and 21 days ----
+  const ratings = topicRatings(sessions);
+  const reviews = new Map(); // topicId → { topic, step, due, lastDate, mastered, weak, weakness, minutes, seq }
+  const addReview = (topic, st) =>
+    reviews.set(topic.id, { ...st, topic, minutes: revisionMinutes(topic, st.weak), seq: work.get(topic.id).seq });
+  for (const [id, st] of revisionStates(topics, sessions)) if (work.has(id)) addReview(work.get(id).topic, st);
+  const deadlineById = new Map(validDeadlines.map((d) => [d.id, d]));
+
+  /** Reviews to do on `date`: due ones, plus (on an exam's buffer days) its topics not yet looked at again. */
+  const reviewCandidates = (date, exam) => {
+    const windowStart = exam ? addDays(exam.date, -settings.bufferDays) : null;
+    const list = [];
+    for (const r of reviews.values()) {
+      if (r.lastDate >= date) continue; // finished or reviewed today already
+      const due = !r.mastered && r.due <= date;
+      const forExam = exam && covers(exam, r.topic) && r.lastDate < windowStart ? exam : null;
+      if (due || forExam) list.push({ r, forExam, due, sortDue: due ? r.due : date });
+    }
+    return list.sort(
+      (a, b) => Number(b.r.weak) - Number(a.r.weak) || a.sortDue.localeCompare(b.sortDue) || b.r.weakness - a.r.weakness || a.r.seq - b.r.seq,
+    );
+  };
+
+  /** A planned review counts as "okay": on to the next step. */
+  const advance = (r, date) => {
+    r.lastDate = date;
+    if (r.mastered) return;
+    r.step += 1;
+    if (r.step >= REVIEWS) {
+      r.mastered = true;
+      r.due = null;
+    } else {
+      r.due = addDays(date, nextGap(r.step, 'okay'));
+    }
+  };
+
   // ---- "At risk" checks: once a deadline's due-by date has passed, is its work all placed? ----
   const atRisk = new Set();
   let pendingRisk = validDeadlines
@@ -168,6 +209,40 @@ export function buildPlan({
     }
 
     let left = capacity[i];
+
+    // Reviews first, within the day's share; one is always allowed so they never pile up.
+    // When new work for a deadline is tight, or on a buffer day (where only work that's behind
+    // may go), new work goes first and reviews get the time left over.
+    const exam = bufferId ? deadlineById.get(bufferId) : null;
+    let budget = Math.floor(capacity[i] * REVISION.share[phase]);
+    const reviewItems = [];
+    const placeReviews = (withinBudget) => {
+      for (const c of reviewCandidates(date, exam)) {
+        const minutes = c.r.minutes;
+        if (minutes > left) continue;
+        if (withinBudget && reviewItems.length > 0 && minutes > budget) continue;
+        reviewItems.push({
+          kind: 'review',
+          topicId: c.r.topic.id,
+          subjectId: c.r.topic.subjectId,
+          unitId: c.r.topic.unitId,
+          minutes,
+          part: 1,
+          parts: 1,
+          deadlineId: c.forExam?.id ?? null,
+          dueBy: date,
+          overdue: c.due && c.r.due < date,
+          review: c.r.mastered ? null : c.r.step + 1,
+          weak: c.r.weak,
+          forExam: c.forExam?.id ?? null,
+        });
+        left -= minutes;
+        budget -= minutes;
+        advance(c.r, date);
+      }
+    };
+    if (!bufferId && urgentUntil === null) placeReviews(true);
+
     const minBlock = Math.min(BLOCK.min, capacity[i]);
     const usedToday = new Set();
     const items = [];
@@ -203,6 +278,7 @@ export function buildPlan({
       const minutes = blockSize(best.w.remaining, left, minBlock);
       if (minutes <= 0) continue;
       const item = {
+        kind: 'learn',
         topicId: topic.id,
         subjectId: topic.subjectId,
         unitId: topic.unitId,
@@ -218,9 +294,31 @@ export function buildPlan({
       blocks.get(topic.id).push(item);
       best.w.remaining -= minutes;
       left -= minutes;
+      // Finished in the plan: its first review comes the next day.
+      if (best.w.remaining <= 0) {
+        const r = ratings.get(topic.id) ?? [];
+        addReview(topic, {
+          step: 0,
+          lastDate: date,
+          due: addDays(date, nextGap(0, r.at(-1))),
+          mastered: false,
+          weak: isWeak(r),
+          weakness: weakness(r, topic.difficulty),
+          ratings: r,
+        });
+      }
     }
+    // Time new work didn't need goes to more reviews.
+    if (left > 0) placeReviews(false);
 
-    days.push({ date, phase, capacity: capacity[i], buffer: Boolean(bufferId), bufferFor: bufferId, items });
+    days.push({
+      date,
+      phase,
+      capacity: capacity[i],
+      buffer: Boolean(bufferId),
+      bufferFor: bufferId,
+      items: [...reviewItems, ...items],
+    });
   }
   for (const p of pendingRisk) checkRisk(p.deadline);
 

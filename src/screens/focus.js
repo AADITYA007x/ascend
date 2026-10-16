@@ -79,7 +79,12 @@ export function renderFocus() {
       'div',
       { class: 'focus-topic' },
       h('span', { class: 'subject-dot', 'aria-hidden': 'true' }),
-      h('span', {}, h('span', { class: 'card-heading' }, topic.name), h('span', { class: 'muted small' }, subject?.name ?? '')),
+      h(
+        'span',
+        {},
+        h('span', { class: 'card-heading' }, topic.name),
+        h('span', { class: 'muted small' }, t.kind === 'revision' ? `Review · ${subject?.name ?? ''}` : (subject?.name ?? '')),
+      ),
     ),
     ring,
     status,
@@ -99,8 +104,8 @@ export function renderFocus() {
     clock.textContent = formatClock(v.remainingMs);
     fill.setAttribute('stroke-dashoffset', String(RING_C * (v.elapsedMs / v.lengthMs)));
     root.classList.toggle('on-break', v.phase === 'break');
-    phaseLabel.textContent = v.phase === 'focus' ? `Round ${timer.rounds + 1}` : 'Break';
-    status.textContent = statusText(v);
+    phaseLabel.textContent = v.phase === 'break' ? 'Break' : timer.kind === 'revision' && !timer.breakMin ? 'Review' : `Round ${timer.rounds + 1}`;
+    status.textContent = statusText(v, timer);
     sofar.textContent = v.focusMs >= 60000 ? `${formatMinutes(Math.floor(v.focusMs / 60000))} of focus so far` : '';
     if (root.isConnected) document.title = `${formatClock(v.remainingMs)} · ${v.phase === 'focus' ? 'Focus' : 'Break'}`;
 
@@ -134,9 +139,9 @@ export function renderFocus() {
   return { title: 'Focus', top, hideNav: true, body: root };
 }
 
-function statusText(v) {
+function statusText(v, timer) {
   if (v.phase === 'focus') {
-    if (v.status === 'ended') return 'Time for a break. Well done.';
+    if (v.status === 'ended') return timer.breakMin ? 'Time for a break. Well done.' : 'Time’s up. Nicely done.';
     if (v.status === 'paused') return 'Paused. Pick up when you’re ready.';
     return 'One topic, nothing else.';
   }
@@ -148,7 +153,8 @@ function phaseEnded(timer, topic) {
   chime();
   buzz();
   if (document.visibilityState !== 'visible') {
-    if (timer.phase === 'focus') notify('Time for a break', `${topic.name}: ${formatMinutes(timer.focusMin)} of focus done.`);
+    if (timer.phase === 'focus' && !timer.breakMin) notify('Time’s up', `${topic.name}: done. Come back to rate it.`);
+    else if (timer.phase === 'focus') notify('Time for a break', `${topic.name}: ${formatMinutes(timer.focusMin)} of focus done.`);
     else notify('Break’s over', `Ready for another round of ${topic.name}?`);
   }
 }
@@ -161,6 +167,8 @@ function actionButtons(timer, v) {
   if (v.phase === 'focus') {
     if (v.status === 'running') return [primary('Pause', () => update(pauseTimer), 'pause'), finish];
     if (v.status === 'paused') return [primary('Resume', () => update(resumeTimer), 'play'), finish];
+    // No break planned (a short review): finishing is the next step.
+    if (!timer.breakMin) return [primary('Finish', finishSession, 'check')];
     return [primary(`Start ${formatMinutes(timer.breakMin)} break`, () => update(startBreak)), finish];
   }
   if (v.status === 'ended') return [primary('Another round', () => update(startFocus), 'play'), finish];
@@ -202,6 +210,7 @@ async function finishSession() {
       topicId: t.topicId,
       subjectId: t.subjectId,
       minutes: summary.minutes,
+      kind: t.kind ?? 'learn',
       finished: Boolean(t.finishes) && summary.minutes >= t.plannedMin,
       source: 'timer',
       startedAt: summary.startedAt,

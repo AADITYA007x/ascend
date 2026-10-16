@@ -1335,3 +1335,35 @@ select.input {
     transition: none;
   }
 }
+
+/* ---------- Reviews (Milestone 4) ---------- */
+.review-block {
+  border-left-style: dashed;
+}
+
+.review-tag {
+  display: inline-block;
+  margin-right: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+  vertical-align: 2px;
+}
+
+.topic-name {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.topic-state {
+  font-size: 0.8rem;
+}
+
+/* Warm, never alarming. */
+.weak-text {
+  color: var(--warn);
+}

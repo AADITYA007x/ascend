@@ -9,8 +9,9 @@ import { saveUnit, saveUnits, saveTopic, saveTopics, deleteUnit, deleteTopic, re
 import { makeUnit, makeTopic, DIFFICULTY_LABELS } from '../model/factory.js';
 import { validateUnit, validateTopic } from '../model/validate.js';
 import { subjectTotals, byOrder, nextOrder, moveItem } from '../model/summary.js';
-import { formatMinutes } from '../model/time.js';
+import { formatMinutes, relativeDays, todayYMD } from '../model/time.js';
 import { planningTopics } from '../model/estimate.js';
+import { revisionStates } from '../model/revision.js';
 import { rerender } from '../router.js';
 import { openSubjectSheet, creditsLabel } from './subjects.js';
 
@@ -80,8 +81,19 @@ function topicTime(t, learned) {
   );
 }
 
+/** One calm line about a finished topic's reviews, or null while it's still being learned. */
+function reviewState(st, today) {
+  if (!st) return null;
+  if (st.weak) return h('span', { class: 'topic-state weak-text' }, 'Worth another look');
+  if (st.mastered) return h('span', { class: 'topic-state muted' }, 'Mastered');
+  const when = st.due <= today ? 'today' : relativeDays(today, st.due).toLowerCase();
+  return h('span', { class: 'topic-state muted' }, `Next review ${when}`);
+}
+
 function unitBlock(subject, unit) {
   const learned = learnedEstimates();
+  const today = todayYMD();
+  const reviews = revisionStates(state.topics, state.sessions);
   const topics = byOrder(state.topics.filter((t) => t.unitId === unit.id));
   const est = topics.reduce((sum, t) => sum + t.estMin, 0);
   const details = h(
@@ -129,7 +141,7 @@ function unitBlock(subject, unit) {
               h(
                 'button',
                 { type: 'button', class: 'topic-row', onclick: () => openTopicSheet(subject, unit, t) },
-                h('span', { class: 'topic-name' }, t.name),
+                h('span', { class: 'topic-name' }, t.name, reviewState(reviews.get(t.id), today)),
                 h('span', { class: `pill diff-${t.difficulty}` }, DIFFICULTY_LABELS[t.difficulty]),
                 topicTime(t, learned),
               ),
