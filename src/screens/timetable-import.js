@@ -88,7 +88,7 @@ async function start(file, batchText) {
     const data = await postHelper(
       '/timetable',
       { file: { mimeType: prepared.mimeType, data: prepared.data }, batch, subjects },
-      { timeoutMs: 60000, signal: controller.signal },
+      { timeoutMs: 120000, signal: controller.signal },
     );
     if (flow?.controller !== controller) return; // cancelled, or a newer file was picked
     const rows = cleanRows(data.rows).map((r, i) => ({ ...r, rid: i }));
@@ -113,7 +113,7 @@ function readingView() {
     { class: 'import import-reading', 'aria-busy': 'true' },
     flow.file.previewUrl ? h('img', { class: 'import-thumb', src: flow.file.previewUrl, alt: 'Your timetable' }) : h('p', { class: 'muted' }, 'Your PDF'),
     h('p', { class: 'card-heading', role: 'status' }, 'Reading your timetable…'),
-    h('p', { class: 'muted small' }, 'This usually takes 10–30 seconds.'),
+    h('p', { class: 'muted small' }, 'This can take up to a minute for a busy timetable.'),
     h('button', { type: 'button', class: 'btn btn-quiet', onclick: cancelReading }, 'Cancel'),
   );
 }

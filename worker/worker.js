@@ -30,23 +30,6 @@ const CARDS_SCHEMA = {
   },
 };
 
-const TIMETABLE_SCHEMA = {
-  type: 'ARRAY',
-  maxItems: ROWS_MAX,
-  items: {
-    type: 'OBJECT',
-    properties: {
-      day: { type: 'STRING' },
-      start: { type: 'STRING' },
-      end: { type: 'STRING' },
-      subject: { type: 'STRING' },
-      kind: { type: 'STRING' },
-      room: { type: 'STRING' },
-    },
-    required: ['day', 'start', 'end', 'subject'],
-  },
-};
-
 function corsHeaders(origin) {
   return {
     'Access-Control-Allow-Origin': origin,
@@ -97,33 +80,31 @@ function timetablePrompt(batch, subjects) {
 
 /**
  * Asks Gemini for a JSON list. Returns { status, list } or { status, error }.
- * With retryPlain, a 400 is tried once more without the strict schema (the prompt describes the shape),
- * since some models refuse a schema together with an image.
+ * schema: a strict response schema, or null to rely on the prompt (needed with images on newer models).
+ * fast: ask for a low thinking level (much quicker); if the model refuses it (400), retry once without.
  */
-async function askGemini(parts, schema, env, { retryPlain = false } = {}) {
+async function askGemini(parts, schema, env, { fast = false } = {}) {
   const model = env.GEMINI_MODEL || DEFAULT_MODEL;
-  const call = (withSchema) =>
-    fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+  const call = (withThinking) => {
+    const generationConfig = { responseMimeType: 'application/json', temperature: 0.2 };
+    if (schema) generationConfig.responseSchema = schema;
+    if (withThinking) generationConfig.thinkingConfig = { thinkingLevel: 'low' };
+    return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts }],
-        generationConfig: withSchema
-          ? { responseMimeType: 'application/json', responseSchema: schema, temperature: 0.2 }
-          : { responseMimeType: 'application/json', temperature: 0.2 },
-      }),
+      body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig }),
     });
+  };
   // For you in the Worker's logs (never sent to the browser): what Gemini said, without the key.
   const logFailure = async (r, label) => {
     const detail = await r.text().catch(() => '');
     console.error(`Gemini ${model} (${label}) answered ${r.status}: ${detail.slice(0, 500)}`);
   };
-  let res = await call(true);
-  if (!res.ok) await logFailure(res, 'with schema');
-  if (res.status === 400 && retryPlain) {
+  let res = await call(fast);
+  if (!res.ok) await logFailure(res, fast ? 'low thinking' : 'default');
+  if (res.status === 400 && fast) {
     res = await call(false);
-    if (!res.ok) await logFailure(res, 'without schema');
-    else console.log(`Gemini ${model} (without schema) answered ${res.status}`);
+    if (!res.ok) await logFailure(res, 'default thinking');
   }
   if (res.status === 429) return { status: 429, error: 'The helper has reached its free limit for now. Try again later.' };
   if (!res.ok) return { status: 502, error: BUSY };
@@ -166,7 +147,7 @@ async function timetable(body, env) {
     .map((s) => str(s, 60))
     .filter(Boolean)
     .slice(0, SUBJECTS_MAX);
-  const r = await askGemini([{ inlineData: { mimeType, data } }, { text: timetablePrompt(batch, subjects) }], TIMETABLE_SCHEMA, env, { retryPlain: true });
+  const r = await askGemini([{ inlineData: { mimeType, data } }, { text: timetablePrompt(batch, subjects) }], null, env, { fast: true });
   if (r.error) return { status: r.status, body: { error: r.error } };
   const rows = r.list
     .map((x) => ({

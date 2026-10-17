@@ -9,7 +9,7 @@ import { overlappingIds } from './timetable.js';
 import { toMinutes, fromMinutes } from './time.js';
 
 export const IMPORT = {
-  maxImageSide: 2000, // px, longest side after downscaling a photo
+  maxImageSide: 1600, // px, longest side after downscaling a photo (plenty for reading text, quicker to send)
   jpegQuality: 0.85,
   maxBytes: 4 * 1024 * 1024, // largest file sent to the helper
   maxRows: 80,

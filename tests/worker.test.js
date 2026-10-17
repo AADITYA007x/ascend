@@ -119,7 +119,9 @@ describe('timetable reading', () => {
     const text = sent.contents[0].parts[1].text;
     expect(text).toContain('"B2"');
     expect(text).toContain('Physics (PH101); Data Structures');
-    expect(sent.generationConfig.responseSchema.items.properties).toHaveProperty('room');
+    expect(sent.generationConfig).not.toHaveProperty('responseSchema'); // described in the prompt instead
+    expect(sent.generationConfig.thinkingConfig).toEqual({ thinkingLevel: 'low' });
+    expect(text).toContain('JSON array');
   });
 
   it('keeps all batches when none is given, and passes on the free-limit message', async () => {
@@ -133,8 +135,8 @@ describe('timetable reading', () => {
   });
 });
 
-describe('timetable retry without the schema', () => {
-  it('tries once more without responseSchema when Gemini says 400, and uses that answer', async () => {
+describe('timetable speed setting', () => {
+  it('asks for low thinking, and retries once without it if the model refuses (400)', async () => {
     const calls = [];
     vi.stubGlobal(
       'fetch',
@@ -148,14 +150,14 @@ describe('timetable retry without the schema', () => {
     const res = await worker.fetch(req({ file: { mimeType: 'image/png', data: 'aGVsbG8=' } }, { path: '/timetable' }), env);
     expect(res.status).toBe(200);
     expect((await res.json()).rows).toHaveLength(1);
-    expect(calls[0].generationConfig).toHaveProperty('responseSchema');
-    expect(calls[1].generationConfig).not.toHaveProperty('responseSchema');
-    expect(calls[1].contents[0].parts[1].text).toContain('JSON array');
+    expect(calls[0].generationConfig.thinkingConfig).toEqual({ thinkingLevel: 'low' });
+    expect(calls[1].generationConfig).not.toHaveProperty('thinkingConfig');
   });
-  it('does not retry flashcards, and gives the calm error when both tries fail', async () => {
+  it('keeps flashcards as they were (strict schema, one try), and gives the calm error when both tries fail', async () => {
     const spy = stubGemini(new Response('{}', { status: 400 }));
     expect((await worker.fetch(req({ notes: 'n' }), env)).status).toBe(502);
     expect(spy).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(spy.mock.calls[0][1].body).generationConfig).toHaveProperty('responseSchema');
     const both = vi.fn(async () => new Response('{}', { status: 400 }));
     vi.stubGlobal('fetch', both);
     expect((await worker.fetch(req({ file: { mimeType: 'image/png', data: 'aGVsbG8=' } }, { path: '/timetable' }), env)).status).toBe(502);
