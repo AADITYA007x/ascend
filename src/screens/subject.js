@@ -4,7 +4,7 @@ import { topbar } from '../ui/layout.js';
 import { field, textInput, select, stepper, chips, showMessages, fab, emptyState } from '../ui/fields.js';
 import { openSheet } from '../ui/sheet.js';
 import { toast } from '../ui/toast.js';
-import { state, reload, subjectById } from '../state.js';
+import { state, reload, subjectById, cardsFor } from '../state.js';
 import { saveUnit, saveUnits, saveTopic, saveTopics, deleteUnit, deleteTopic, restore } from '../db/repo.js';
 import { makeUnit, makeTopic, DIFFICULTY_LABELS } from '../model/factory.js';
 import { validateUnit, validateTopic } from '../model/validate.js';
@@ -12,7 +12,7 @@ import { subjectTotals, byOrder, nextOrder, moveItem } from '../model/summary.js
 import { formatMinutes, relativeDays, todayYMD } from '../model/time.js';
 import { planningTopics } from '../model/estimate.js';
 import { revisionStates } from '../model/revision.js';
-import { rerender } from '../router.js';
+import { rerender, navigate } from '../router.js';
 import { openSubjectSheet, creditsLabel } from './subjects.js';
 
 // Units the user collapsed, remembered while the app is open.
@@ -90,6 +90,8 @@ function reviewState(st, today) {
   return h('span', { class: 'topic-state muted' }, `Next review ${when}`);
 }
 
+const cardCount = (n) => `${n} flashcard${n === 1 ? '' : 's'}`;
+
 function unitBlock(subject, unit) {
   const learned = learnedEstimates();
   const today = todayYMD();
@@ -141,7 +143,13 @@ function unitBlock(subject, unit) {
               h(
                 'button',
                 { type: 'button', class: 'topic-row', onclick: () => openTopicSheet(subject, unit, t) },
-                h('span', { class: 'topic-name' }, t.name, reviewState(reviews.get(t.id), today)),
+                h(
+                  'span',
+                  { class: 'topic-name' },
+                  t.name,
+                  reviewState(reviews.get(t.id), today),
+                  cardsFor(t.id).length ? h('span', { class: 'topic-state muted' }, cardCount(cardsFor(t.id).length)) : null,
+                ),
                 h('span', { class: `pill diff-${t.difficulty}` }, DIFFICULTY_LABELS[t.difficulty]),
                 topicTime(t, learned),
               ),
@@ -276,6 +284,22 @@ function openTopicSheet(subject, unit, existing) {
       ),
       h('p', { class: 'field-msg' }),
     ),
+    existing
+      ? h(
+          'button',
+          {
+            type: 'button',
+            class: 'btn btn-quiet flashcards-link',
+            onclick: async () => {
+              sheet.close();
+              await sheet.closed;
+              navigate(`cards/${encodeURIComponent(t.id)}`);
+            },
+          },
+          icon('book', 18),
+          cardsFor(t.id).length ? `Flashcards (${cardsFor(t.id).length})` : 'Add flashcards',
+        )
+      : null,
     units.length > 1
       ? field('unitId', 'Unit', select('unitId', units.map((u) => ({ value: u.id, label: u.name })), t.unitId))
       : null,

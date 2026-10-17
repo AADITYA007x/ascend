@@ -1,6 +1,6 @@
 // Sheets for studying a topic: start a focus timer, and log / rate a session.
 // Today and the focus screen both use these.
-import { h } from '../ui/dom.js';
+import { h, icon } from '../ui/dom.js';
 import { field, stepper, chips } from '../ui/fields.js';
 import { openSheet } from '../ui/sheet.js';
 import { toast } from '../ui/toast.js';
@@ -14,6 +14,8 @@ import { formatMinutes, todayYMD } from '../model/time.js';
 import { navigate, rerender } from '../router.js';
 import { isSummitSession } from '../model/summit.js';
 import { celebrateSummit } from '../ui/celebrate.js';
+import { quizRating, quizLine } from '../model/cards.js';
+import { afterReview, dueCardsFor, startQuiz } from './quiz.js';
 
 const LENGTHS = [
   { value: '25-5', label: '25 / 5', focus: 25, brk: 5 },
@@ -42,6 +44,7 @@ export function openStartSheet(item) {
   const subject = subjectById(item.subjectId);
   const isReview = item.kind === 'review';
   const kind = isReview ? 'revision' : 'learn';
+  let sheet; // either sheet below; the buttons close whichever is open
   const logInstead = h(
     'button',
     {
@@ -50,18 +53,43 @@ export function openStartSheet(item) {
       onclick: async () => {
         sheet.close();
         await sheet.closed;
-        openLogSheet({ ...item, kind, minutes: item.minutes, finished: !isReview && item.part === item.parts });
+        const entry = { ...item, kind, minutes: item.minutes, finished: !isReview && item.part === item.parts };
+        // A review goes through the topic's due flashcards first, if it has any.
+        if (isReview) afterReview(entry);
+        else openLogSheet(entry);
       },
     },
     'I studied this already',
   );
+  // A review with cards due can be just the quiz: its own length is the time logged.
+  const due = isReview ? dueCardsFor(item.topicId) : [];
+  const quizOnly = due.length
+    ? h(
+        'button',
+        {
+          type: 'button',
+          class: 'quiz-option',
+          onclick: async () => {
+            sheet.close();
+            await sheet.closed;
+            startQuiz(item.topicId, {
+              cards: due,
+              timed: true,
+              entry: { topicId: item.topicId, subjectId: item.subjectId, kind: 'revision', minutes: 1, finished: false },
+            });
+          },
+        },
+        icon('book', 20),
+        h('span', {}, h('span', { class: 'card-heading' }, 'Just the quiz'), h('span', { class: 'muted small' }, `${due.length} flashcard${due.length === 1 ? '' : 's'} due`)),
+      )
+    : null;
 
   // Only one timer at a time.
   if (state.timer) {
     const running = topicById(state.timer.topicId);
-    const sheet = openSheet({
+    sheet = openSheet({
       title: topic?.name ?? 'Study',
-      body: h('p', { class: 'confirm-text' }, `You have a focus session running on ${running?.name ?? 'another topic'}.`),
+      body: h('div', {}, h('p', { class: 'confirm-text' }, `You have a focus session running on ${running?.name ?? 'another topic'}.`), quizOnly),
       submitLabel: 'Back to focus',
       extraActions: [logInstead],
       onSubmit: () => () => navigate('focus'),
@@ -108,13 +136,14 @@ export function openStartSheet(item) {
         ? `${subject?.name ?? ''} · ${item.review ? `review ${item.review} of ${REVIEWS}` : 'a look back before the exam'}`
         : `${subject?.name ?? ''} · ${formatMinutes(item.minutes)} planned${item.parts > 1 ? ` (part ${item.part} of ${item.parts})` : ''}`,
     ),
+    quizOnly,
     h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'Focus / break (minutes)'), lengthChips),
     custom,
     wakeLockSupported() ? toggle('keepAwake', 'Keep screen on', semester.keepAwake, 'While the timer runs.') : null,
     canAskNotify() ? toggle('notify', 'Tell me when time is up', true, 'A notification, even if you switch apps.') : null,
   );
 
-  const sheet = openSheet({
+  sheet = openSheet({
     title: isReview ? `Review: ${topic?.name ?? 'topic'}` : (topic?.name ?? 'Focus'),
     body,
     submitLabel: 'Start focus',
@@ -148,8 +177,9 @@ export function openStartSheet(item) {
 /**
  * Log a session and rate it. Used after a focus timer (with the real minutes filled in)
  * and for time studied without the timer.
- * entry: { topicId, subjectId, minutes, finished, kind?, source?, startedAt?, rounds?, date? }
- * A review ('revision') only asks how it felt and how long it took.
+ * entry: { topicId, subjectId, minutes, finished, kind?, source?, startedAt?, rounds?, date?, quiz? }
+ * A review ('revision') only asks how it felt and how long it took. After a flashcard quiz,
+ * the score picks the starting rating (you can change it) and the answers are saved with the session.
  * Returns the sheet; opts.afterClose runs once a saved sheet has closed (a safe place to navigate).
  */
 export function openLogSheet(entry, { afterClose } = {}) {
@@ -163,10 +193,11 @@ export function openLogSheet(entry, { afterClose } = {}) {
     format: formatMinutes,
     label: 'study time',
   });
+  const suggested = quizRating(entry.quiz);
   const rating = chips(
     'rating',
     Object.entries(RATING_LABELS).map(([value, label]) => ({ value, label })),
-    'okay',
+    suggested ?? 'okay',
     { label: 'How did it feel?' },
   );
   const status = isReview
@@ -186,7 +217,13 @@ export function openLogSheet(entry, { afterClose } = {}) {
     body: h(
       'div',
       {},
-      h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'How did it feel?'), rating),
+      h(
+        'div',
+        { class: 'field' },
+        h('span', { class: 'field-label' }, 'How did it feel?'),
+        rating,
+        suggested ? h('p', { class: 'field-hint' }, `From your quiz: ${quizLine(entry.quiz)}. Change it if it felt different.`) : null,
+      ),
       status ? h('div', { class: 'field' }, h('span', { class: 'field-label' }, 'How far did you get?'), status) : null,
       field('minutes', fromTimer ? 'Focus time' : 'Time studied', minutes, {
         hint: fromTimer ? 'From the timer. Change it if you kept going after the bell.' : null,
@@ -207,6 +244,7 @@ export function openLogSheet(entry, { afterClose } = {}) {
         source: fromTimer ? 'timer' : 'manual',
         startedAt: entry.startedAt ?? null,
         rounds: entry.rounds ?? 0,
+        quiz: entry.quiz ?? null,
       });
       if (fromTimer) await saveTimerSession(session);
       else await saveSession(session);

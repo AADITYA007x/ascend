@@ -14,6 +14,8 @@ import { renderDeadlines } from './screens/deadlines.js';
 import { renderTimetable } from './screens/timetable.js';
 import { renderFocus } from './screens/focus.js';
 import { renderProgress } from './screens/progress.js';
+import { renderCards } from './screens/cards.js';
+import { renderQuiz } from './screens/quiz.js';
 
 // Every screen except Semester needs a semester first.
 const needsSemester = (render) => (...args) => (state.semester ? render(...args) : renderSemester());
@@ -27,6 +29,8 @@ const routes = {
   deadlines: { render: needsSemester(renderDeadlines) },
   timetable: { render: needsSemester(renderTimetable) },
   focus: { render: needsSemester(renderFocus), tab: 'today' },
+  cards: { render: needsSemester(renderCards), tab: 'subjects' },
+  quiz: { render: needsSemester(renderQuiz), tab: 'today' },
 };
 
 function defaultRoute() {

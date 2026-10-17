@@ -107,6 +107,20 @@ export function validateDeadline(d, semester) {
   return result(errors, warnings);
 }
 
+export const CARD_LIMITS = { frontMax: 300, backMax: 600 };
+
+export function validateCard(c) {
+  const errors = {};
+  const front = typeof c?.front === 'string' ? c.front.trim() : '';
+  const back = typeof c?.back === 'string' ? c.back.trim() : '';
+  if (!front) errors.front = 'Please add a question or prompt.';
+  else if (front.length > CARD_LIMITS.frontMax) errors.front = `Keep it under ${CARD_LIMITS.frontMax} characters.`;
+  if (!back) errors.back = 'Please add the answer.';
+  else if (back.length > CARD_LIMITS.backMax) errors.back = `Keep it under ${CARD_LIMITS.backMax} characters.`;
+  if (!c?.topicId) errors.topicId = 'This card needs a topic.';
+  return result(errors);
+}
+
 export function validateSlot(s) {
   const errors = {};
   if (!Number.isInteger(s?.day) || s.day < 0 || s.day > 6) errors.day = 'Pick a day.';

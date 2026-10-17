@@ -2084,3 +2084,183 @@ select.input {
     transition: none;
   }
 }
+
+/* ---------- Flashcards (Milestone 8) ---------- */
+.textarea {
+  display: block;
+  min-height: 0;
+  resize: vertical;
+  line-height: 1.45;
+  font-family: inherit;
+}
+
+.cards-intro {
+  margin: 0;
+}
+
+.cards-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 -12px;
+}
+
+.flashcard-row .card-heading {
+  overflow-wrap: anywhere;
+}
+
+.flashcards-link {
+  margin: 4px -12px 8px;
+}
+
+.form-hint-top {
+  margin: 0 0 12px;
+}
+
+.notes-count {
+  text-align: right;
+}
+
+.drafts {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.draft-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.draft-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: -6px;
+}
+
+.draft-front {
+  font-weight: 600;
+}
+
+/* The "Just the quiz" choice in a review's start sheet */
+.quiz-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.quiz-option > span:last-child {
+  display: flex;
+  flex-direction: column;
+}
+
+.quiz-option > .icon {
+  color: var(--accent);
+}
+
+.quiz-option:active {
+  background: var(--surface-2);
+}
+
+/* The quiz screen */
+.quiz {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: calc(100dvh - 140px);
+}
+
+.quiz-progress {
+  margin: 0;
+  text-align: center;
+}
+
+.flashcard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 220px;
+  padding: 24px 20px;
+  border-top: 6px solid var(--subject);
+  justify-content: center;
+  text-align: center;
+}
+
+.flashcard-front {
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.flashcard-back {
+  padding-top: 16px;
+  border-top: 1px dashed var(--line);
+  font-size: 1.08rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  animation: card-reveal 0.2s ease;
+}
+
+.flashcard-back .field-label {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.quiz-done {
+  align-items: center;
+}
+
+.quiz-done > .icon {
+  color: var(--accent);
+}
+
+.quiz-answer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.quiz-answer .focus-main {
+  width: auto;
+}
+
+.quiz-missed {
+  min-height: 56px;
+  font-size: 1.1rem;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+@keyframes card-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flashcard-back {
+    animation: none;
+  }
+}

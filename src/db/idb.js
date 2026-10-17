@@ -1,7 +1,7 @@
 // A small promise wrapper around IndexedDB. No library.
 
 const DB_NAME = 'ascend';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 // Stores and their indexes. Bump DB_VERSION and extend upgrade() for future changes.
 function upgrade(db, oldVersion) {
@@ -33,6 +33,12 @@ function upgrade(db, oldVersion) {
     sessions.createIndex('semesterId', 'semesterId');
     sessions.createIndex('subjectId', 'subjectId');
     sessions.createIndex('topicId', 'topicId');
+  }
+  if (oldVersion < 3) {
+    // Milestone 8: flashcards. Quiz answers ride on sessions, so cards hold only front and back.
+    const cards = db.createObjectStore('cards', { keyPath: 'id' });
+    cards.createIndex('topicId', 'topicId');
+    cards.createIndex('subjectId', 'subjectId');
   }
 }
 

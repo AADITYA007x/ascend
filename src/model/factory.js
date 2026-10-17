@@ -51,6 +51,7 @@ export function makeSession(fields = {}) {
     source: 'manual', // 'manual' | 'timer'
     startedAt: null, // ms, for timer sessions
     rounds: 0,
+    quiz: null, // Milestone 8: { got: [cardId], missed: [cardId] } from a flashcard quiz
     ...fields,
   };
 }
@@ -65,6 +66,10 @@ export function makeUnit(fields = {}) {
 
 export function makeTopic(fields = {}) {
   return { id: newId(), unitId: '', subjectId: '', name: '', estMin: 45, difficulty: 2, order: 0, ...fields };
+}
+
+export function makeCard(fields = {}) {
+  return { id: newId(), topicId: '', subjectId: '', front: '', back: '', source: 'manual', createdAt: Date.now(), ...fields };
 }
 
 export function makeDeadline(fields = {}) {

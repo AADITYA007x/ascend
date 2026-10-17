@@ -10,6 +10,7 @@ export const state = {
   deadlines: [],
   slots: [],
   sessions: [],
+  cards: [], // flashcards for this semester's topics
   timer: null, // the running focus timer, if any
   storySeen: null, // Monday of the last weekly story dismissed on Today
   summit: null, // today's summit topic: { date, topicId, subjectId, kind, celebrated }
@@ -21,7 +22,7 @@ export async function reload() {
   state.storySeen = await getMeta('storySeen');
   state.summit = await getMeta('summit');
   if (!state.semester) {
-    Object.assign(state, { subjects: [], units: [], topics: [], deadlines: [], slots: [], sessions: [] });
+    Object.assign(state, { subjects: [], units: [], topics: [], deadlines: [], slots: [], sessions: [], cards: [] });
     return state;
   }
   Object.assign(state, await loadSemesterData(state.semester.id));
@@ -31,4 +32,9 @@ export async function reload() {
 
 export function subjectById(id) {
   return state.subjects.find((s) => s.id === id) ?? null;
+}
+
+/** A topic's flashcards, oldest first. */
+export function cardsFor(topicId) {
+  return state.cards.filter((c) => c.topicId === topicId).sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
 }

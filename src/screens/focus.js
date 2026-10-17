@@ -11,6 +11,7 @@ import { timerView, pauseTimer, resumeTimer, startBreak, startFocus, finishTimer
 import { formatMinutes } from '../model/time.js';
 import { navigate } from '../router.js';
 import { openLogSheet } from './session-sheets.js';
+import { afterReview } from './quiz.js';
 
 const RING_R = 88;
 const RING_C = 2 * Math.PI * RING_R;
@@ -205,20 +206,21 @@ async function finishSession() {
     return;
   }
 
-  openLogSheet(
-    {
-      topicId: t.topicId,
-      subjectId: t.subjectId,
-      minutes: summary.minutes,
-      kind: t.kind ?? 'learn',
-      finished: Boolean(t.finishes) && summary.minutes >= t.plannedMin,
-      source: 'timer',
-      startedAt: summary.startedAt,
-      rounds: summary.rounds,
-      date: summary.date,
-    },
-    { afterClose: () => navigate('today') },
-  );
+  const entry = {
+    topicId: t.topicId,
+    subjectId: t.subjectId,
+    minutes: summary.minutes,
+    kind: t.kind ?? 'learn',
+    finished: Boolean(t.finishes) && summary.minutes >= t.plannedMin,
+    source: 'timer',
+    startedAt: summary.startedAt,
+    rounds: summary.rounds,
+    date: summary.date,
+  };
+  const afterClose = () => navigate('today');
+  // A review goes through the topic's due flashcards before it's rated.
+  if (entry.kind === 'revision') afterReview(entry, { afterClose, back: '#/focus' });
+  else openLogSheet(entry, { afterClose });
 }
 
 async function discard() {
