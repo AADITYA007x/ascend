@@ -6,6 +6,7 @@
 import { addDays, isValidDate } from './time.js';
 import { withSemesterDefaults } from './factory.js';
 import { dayCapacity } from './planner.js';
+import { cancelledKeys } from './attendance.js';
 import { topicProgress, remainingMin, minutesStudiedOn } from './progress.js';
 import { planningTopics } from './estimate.js';
 import { covers, currentDeadline, dueBy, isActiveOn } from './priority.js';
@@ -24,16 +25,17 @@ const RANK = { behind: 3, tight: 2, ontrack: 1, done: 0 };
  * Off days, days before the semester and days with no free time don't count.
  * null until there are enough days to say anything.
  */
-export function recentPace({ semester, slots = [], sessions = [], today, days = TRACK.paceDays }) {
+export function recentPace({ semester, slots = [], sessions = [], attendance = [], today, days = TRACK.paceDays }) {
   if (!semester || !isValidDate(today)) return null;
   const settings = withSemesterDefaults(semester);
   let counted = 0;
   let free = 0;
   let studied = 0;
+  const cancelled = cancelledKeys(attendance);
   for (let k = 1; k <= days; k++) {
     const date = addDays(today, -k);
     if (date < settings.startDate) break;
-    const cap = dayCapacity({ settings, slots, date, today });
+    const cap = dayCapacity({ settings, slots, date, today, cancelled });
     if (cap <= 0) continue;
     counted += 1;
     free += cap;

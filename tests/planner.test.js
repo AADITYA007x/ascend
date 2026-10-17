@@ -78,6 +78,30 @@ describe('dayCapacity', () => {
     // Other days are not affected by the clock.
     expect(dayCapacity({ settings, slots, date: day(1), today: day(0), nowMin: 20 * 60 })).toBe(600);
   });
+  it('counts a cancelled class as free time on that date only', () => {
+    const busy = [{ id: 'c', day: 0, start: '07:00', end: '22:30' }];
+    const cancelled = new Set([`c|${day(0)}`]);
+    expect(dayCapacity({ settings, slots: busy, date: day(0), today: day(0), cancelled })).toBe(600);
+    expect(dayCapacity({ settings, slots: busy, date: day(7), today: day(0), cancelled })).toBe(30);
+  });
+});
+
+describe('buildPlan with cancelled classes', () => {
+  it('plans study in the time a cancelled class frees up', () => {
+    const slots = [{ id: 'c', day: 0, start: '07:00', end: '22:00' }];
+    const base = {
+      semester: semester({ dailyLimitMin: 600 }),
+      subjects: [{ id: 'A', credits: 3 }],
+      units: [{ id: 'u', subjectId: 'A', order: 0 }],
+      topics: [{ id: 't', unitId: 'u', subjectId: 'A', name: 'T', estMin: 300, difficulty: 2, order: 0 }],
+      slots,
+      today: day(0),
+    };
+    const minutes = (plan) => plan.days[0].items.reduce((sum, it) => sum + it.minutes, 0);
+    expect(minutes(buildPlan(base))).toBeLessThanOrEqual(60);
+    const freed = buildPlan({ ...base, attendance: [{ id: `c|${day(0)}`, slotId: 'c', date: day(0), status: 'cancelled' }] });
+    expect(minutes(freed)).toBeGreaterThan(60);
+  });
 });
 
 describe('blockSize', () => {

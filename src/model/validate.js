@@ -107,6 +107,27 @@ export function validateDeadline(d, semester) {
   return result(errors, warnings);
 }
 
+export const ATTENDANCE_LIMITS = { minMin: 50, minMax: 100, startMax: 500 };
+
+/** A minimum attendance in %: a whole number from 50 to 100. */
+export function validateAttendanceMin(min) {
+  const errors = {};
+  if (!Number.isInteger(min) || min < ATTENDANCE_LIMITS.minMin || min > ATTENDANCE_LIMITS.minMax) {
+    errors.attendanceMin = `Pick a minimum between ${ATTENDANCE_LIMITS.minMin}% and ${ATTENDANCE_LIMITS.minMax}%.`;
+  }
+  return result(errors);
+}
+
+/** Classes from before Ascend: whole numbers, attended no more than held. */
+export function validateStartCounts({ startAttended, startHeld }) {
+  const errors = {};
+  const ok = (n) => Number.isInteger(n) && n >= 0 && n <= ATTENDANCE_LIMITS.startMax;
+  if (!ok(startHeld)) errors.startHeld = `Use a whole number from 0 to ${ATTENDANCE_LIMITS.startMax}.`;
+  if (!ok(startAttended)) errors.startAttended = `Use a whole number from 0 to ${ATTENDANCE_LIMITS.startMax}.`;
+  else if (!errors.startHeld && startAttended > startHeld) errors.startAttended = 'You can’t have attended more classes than were held.';
+  return result(errors);
+}
+
 export const CARD_LIMITS = { frontMax: 300, backMax: 600 };
 
 export function validateCard(c) {

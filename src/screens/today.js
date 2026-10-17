@@ -23,6 +23,11 @@ import { skyBand } from '../ui/scene.js';
 import { planningTopics } from '../model/estimate.js';
 import { streakModel, streakLine, streakNudge, restTokenNote } from '../model/streak.js';
 import { resolveSummit, summitReached, isSummitItem } from '../model/summit.js';
+import { classesTodayCard } from './attendance.js';
+import { installCard } from '../ui/install.js';
+
+// Today offers installing once, after a few study sessions, until you say "Not now".
+const INSTALL_AFTER_SESSIONS = 3;
 
 const PHASE_LABELS = { keepup: 'Keeping up', exam: 'Exam mode' };
 
@@ -55,6 +60,10 @@ export function renderToday() {
   if (running) body.push(running);
   const story = weekStoryCard(today, semester);
   if (story) body.push(story);
+  if (!state.installDismissed && state.sessions.length >= INSTALL_AFTER_SESSIONS) {
+    const install = installCard({ onDismiss: dismissInstall });
+    if (install) body.push(install);
+  }
 
   if (daysBetween(today, semester.startDate) > 0) {
     body.push(h('p', { class: 'calm-note' }, `Your semester starts ${relativeDays(today, semester.startDate).toLowerCase()}. Here’s how it begins.`));
@@ -65,6 +74,9 @@ export function renderToday() {
 
   const studied = minutesStudiedOn(state.sessions, today);
   const isOff = semester.offDays.includes(today);
+
+  const classes = classesTodayCard(today);
+  if (classes) body.push(classes);
 
   const summit = todaySummit(day, today);
   if (day) {
@@ -425,4 +437,11 @@ async function setOffDay(date, off) {
   const others = s.offDays.filter((d) => d !== date);
   await saveSemester({ ...state.semester, offDays: off ? [...others, date] : others });
   await reload();
+}
+
+async function dismissInstall() {
+  await setMeta('installDismissed', true);
+  state.installDismissed = true;
+  rerender();
+  toast('No problem. You can install Ascend any time from Progress.');
 }

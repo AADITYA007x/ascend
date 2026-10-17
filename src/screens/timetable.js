@@ -6,19 +6,18 @@ import { openSheet } from '../ui/sheet.js';
 import { toast } from '../ui/toast.js';
 import { state, reload, subjectById } from '../state.js';
 import { saveSlot, deleteSlot, restore } from '../db/repo.js';
-import { makeSlot } from '../model/factory.js';
+import { makeSlot, withSemesterDefaults } from '../model/factory.js';
 import { validateSlot } from '../model/validate.js';
 import { slotsForDay, overlappingIds, classMinutesOnDay, freeMinutesPerDay } from '../model/timetable.js';
 import { WEEKDAYS, WEEKDAYS_SHORT, formatMinutes, toMinutes, fromMinutes, todayYMD, weekdayMon0 } from '../model/time.js';
 import { rerender } from '../router.js';
-
-// Awake window used for the "free time" preview. Milestone 2 will make this a setting.
-const DAY_START = '07:00';
-const DAY_END = '23:00';
+import { attendanceSummaryCard } from './attendance.js';
 
 let selectedDay = weekdayMon0(todayYMD());
 
 export function renderTimetable() {
+  // The free-time preview uses your study hours from the semester settings.
+  const { studyFrom: DAY_START, studyTo: DAY_END } = withSemesterDefaults(state.semester);
   const overlaps = overlappingIds(state.slots);
   const daySlots = slotsForDay(state.slots, selectedDay);
   const free = freeMinutesPerDay(state.slots, DAY_START, DAY_END)[selectedDay];
@@ -96,7 +95,7 @@ export function renderTimetable() {
   return {
     title: 'Timetable',
     top: topbar('Timetable', { subtitle: total ? `${total} class${total === 1 ? '' : 'es'} a week` : 'Your weekly classes' }),
-    body: [tabs, summary, listEl, fab('Add class', () => openSlotSheet(null))],
+    body: [attendanceSummaryCard(), tabs, summary, listEl, fab('Add class', () => openSlotSheet(null))].filter(Boolean),
   };
 }
 
@@ -155,7 +154,8 @@ function openSlotSheet(existing) {
               const snapshot = await deleteSlot(s.id);
               await reload();
               rerender();
-              toast('Class removed', {
+              const marks = snapshot.attendance?.length ?? 0;
+              toast(marks ? `Class and ${marks} attendance mark${marks === 1 ? '' : 's'} removed` : 'Class removed', {
                 actionLabel: 'Undo',
                 onAction: async () => {
                   await restore(snapshot);

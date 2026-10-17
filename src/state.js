@@ -11,9 +11,11 @@ export const state = {
   slots: [],
   sessions: [],
   cards: [], // flashcards for this semester's topics
+  attendance: [], // one record per class per date
   timer: null, // the running focus timer, if any
   storySeen: null, // Monday of the last weekly story dismissed on Today
   summit: null, // today's summit topic: { date, topicId, subjectId, kind, celebrated }
+  installDismissed: false, // "Not now" on Today's install card
 };
 
 export async function reload() {
@@ -21,8 +23,9 @@ export async function reload() {
   state.timer = await getActiveTimer();
   state.storySeen = await getMeta('storySeen');
   state.summit = await getMeta('summit');
+  state.installDismissed = Boolean(await getMeta('installDismissed'));
   if (!state.semester) {
-    Object.assign(state, { subjects: [], units: [], topics: [], deadlines: [], slots: [], sessions: [], cards: [] });
+    Object.assign(state, { subjects: [], units: [], topics: [], deadlines: [], slots: [], sessions: [], cards: [], attendance: [] });
     return state;
   }
   Object.assign(state, await loadSemesterData(state.semester.id));

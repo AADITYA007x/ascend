@@ -24,9 +24,9 @@ export function saveSemester(semester) {
 
 /** Everything for one semester, in one read transaction. */
 export function loadSemesterData(semesterId) {
-  const stores = ['subjects', 'units', 'topics', 'deadlines', 'classSlots', 'sessions', 'cards'];
+  const stores = ['subjects', 'units', 'topics', 'deadlines', 'classSlots', 'sessions', 'cards', 'attendance'];
   return tx(stores, 'readonly', async (t) => {
-    const [subjects, units, topics, deadlines, slots, sessions, cards] = await Promise.all([
+    const [subjects, units, topics, deadlines, slots, sessions, cards, attendance] = await Promise.all([
       reqToPromise(t.objectStore('subjects').index('semesterId').getAll(semesterId)),
       reqToPromise(t.objectStore('units').getAll()),
       reqToPromise(t.objectStore('topics').getAll()),
@@ -34,6 +34,7 @@ export function loadSemesterData(semesterId) {
       reqToPromise(t.objectStore('classSlots').index('semesterId').getAll(semesterId)),
       reqToPromise(t.objectStore('sessions').index('semesterId').getAll(semesterId)),
       reqToPromise(t.objectStore('cards').getAll()),
+      reqToPromise(t.objectStore('attendance').index('semesterId').getAll(semesterId)),
     ]);
     const subjectIds = new Set(subjects.map((s) => s.id));
     return {
@@ -44,6 +45,7 @@ export function loadSemesterData(semesterId) {
       slots,
       sessions,
       cards: cards.filter((c) => subjectIds.has(c.subjectId)),
+      attendance,
     };
   });
 }
@@ -86,6 +88,26 @@ export const saveTopics = (list) => putMany('topics', list);
 export const saveSession = (s) => put('sessions', s);
 export const saveCard = (c) => put('cards', c);
 export const saveCards = (list) => putMany('cards', list);
+export const saveAttendance = (r) => put('attendance', r);
+
+/** Saves several marks at once. Returns what undoAttendance needs: the records they replaced and the new ids. */
+export function saveAttendanceMany(list) {
+  return tx(['attendance'], 'readwrite', async (t) => {
+    const os = t.objectStore('attendance');
+    const before = (await Promise.all(list.map((r) => reqToPromise(os.get(r.id))))).filter(Boolean);
+    for (const r of list) os.put(r);
+    const had = new Set(before.map((r) => r.id));
+    return { before, added: list.filter((r) => !had.has(r.id)).map((r) => r.id) };
+  });
+}
+
+export function undoAttendance({ before, added }) {
+  return tx(['attendance'], 'readwrite', (t) => {
+    const os = t.objectStore('attendance');
+    for (const id of added) os.delete(id);
+    for (const r of before) os.put(r);
+  });
+}
 
 // ---------- Deletes (with snapshot for undo) ----------
 
@@ -114,9 +136,9 @@ const byKey = (t, store, key) => reqToPromise(t.objectStore(store).get(key));
 
 /** Removes a subject and everything that belongs to it. */
 export function deleteSubject(subjectId) {
-  const stores = ['subjects', 'units', 'topics', 'deadlines', 'classSlots', 'sessions', 'cards'];
+  const stores = ['subjects', 'units', 'topics', 'deadlines', 'classSlots', 'sessions', 'cards', 'attendance'];
   return deleteWithSnapshot(stores, async (t) => {
-    const [subject, units, topics, deadlines, slots, sessions, cards] = await Promise.all([
+    const [subject, units, topics, deadlines, slots, sessions, cards, attendance] = await Promise.all([
       byKey(t, 'subjects', subjectId),
       byIndex(t, 'units', 'subjectId', subjectId),
       byIndex(t, 'topics', 'subjectId', subjectId),
@@ -124,6 +146,7 @@ export function deleteSubject(subjectId) {
       byIndex(t, 'classSlots', 'subjectId', subjectId),
       byIndex(t, 'sessions', 'subjectId', subjectId),
       byIndex(t, 'cards', 'subjectId', subjectId),
+      byIndex(t, 'attendance', 'subjectId', subjectId),
     ]);
     return {
       removed: {
@@ -134,6 +157,7 @@ export function deleteSubject(subjectId) {
         classSlots: slots,
         sessions,
         cards,
+        attendance,
       },
     };
   });
@@ -186,7 +210,15 @@ export function deleteTopic(id) {
 
 export const deleteSession = (id) => deleteOne('sessions', id);
 export const deleteDeadline = (id) => deleteOne('deadlines', id);
-export const deleteSlot = (id) => deleteOne('classSlots', id);
+/** Removes a class from the timetable and its attendance records. */
+export function deleteSlot(id) {
+  return deleteWithSnapshot(['classSlots', 'attendance'], async (t) => {
+    const [slot, attendance] = await Promise.all([byKey(t, 'classSlots', id), byIndex(t, 'attendance', 'slotId', id)]);
+    return { removed: { classSlots: slot ? [slot] : [], attendance } };
+  });
+}
+
+export const deleteAttendance = (id) => deleteOne('attendance', id);
 export const deleteCard = (id) => deleteOne('cards', id);
 
 /** Puts back records from a delete snapshot. */

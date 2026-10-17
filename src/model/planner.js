@@ -10,6 +10,7 @@ import { topicProgress, minutesStudiedOn, remainingMin } from './progress.js';
 import { covers, currentDeadline, dueBy, isExam, isActiveOn, phaseOn, topicScore } from './priority.js';
 import { byOrder } from './summary.js';
 import { planningTopics } from './estimate.js';
+import { attendanceKey, cancelledKeys } from './attendance.js';
 import { REVISION, REVIEWS, nextGap, isWeak, weakness, revisionMinutes, revisionStates, topicRatings } from './revision.js';
 
 export const BLOCK = {
@@ -21,8 +22,8 @@ export const BLOCK = {
 // Deadline guard: work due by a date counts as urgent once it needs this share of the time left.
 const GUARD_TIGHTNESS = 0.9;
 
-/** Study minutes available on one date. */
-export function dayCapacity({ settings, slots, date, today, nowMin = null, studiedToday = 0 }) {
+/** Study minutes available on one date. Classes in `cancelled` (attendance keys) count as free time. */
+export function dayCapacity({ settings, slots, date, today, nowMin = null, studiedToday = 0, cancelled = null }) {
   if (settings.offDays.includes(date)) return 0;
   const from = toMinutes(settings.studyFrom) ?? 7 * 60;
   const to = toMinutes(settings.studyTo) ?? 23 * 60;
@@ -32,7 +33,8 @@ export function dayCapacity({ settings, slots, date, today, nowMin = null, studi
     limit -= studiedToday;
     if (nowMin !== null && nowMin !== undefined) start = Math.max(from, nowMin);
   }
-  const free = freeMinutesOnDay(slots, weekdayMon0(date), start, to);
+  const held = cancelled?.size ? slots.filter((s) => !cancelled.has(attendanceKey(s.id, date))) : slots;
+  const free = freeMinutesOnDay(held, weekdayMon0(date), start, to);
   return Math.max(0, Math.min(limit, free));
 }
 
@@ -75,6 +77,7 @@ export function buildPlan({
   deadlines = [],
   slots = [],
   sessions = [],
+  attendance = [],
   today,
   nowMin = null,
 }) {
@@ -93,7 +96,8 @@ export function buildPlan({
   // ---- Capacity for every day ----
   const dates = Array.from({ length: daysBetween(start, end) + 1 }, (_, i) => addDays(start, i));
   const studiedToday = minutesStudiedOn(sessions, today);
-  const capacity = dates.map((date) => dayCapacity({ settings, slots, date, today, nowMin, studiedToday }));
+  const cancelled = cancelledKeys(attendance);
+  const capacity = dates.map((date) => dayCapacity({ settings, slots, date, today, nowMin, studiedToday, cancelled }));
   const prefix = [0];
   capacity.forEach((c, i) => prefix.push(prefix[i] + c));
   /** Capacity from day index i up to and including `date`. */

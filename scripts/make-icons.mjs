@@ -127,5 +127,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
 writeFileSync(join(outDir, 'icon-192.png'), render(192, { maskable: false }));
 writeFileSync(join(outDir, 'icon-512.png'), render(512, { maskable: false }));
 writeFileSync(join(outDir, 'icon-maskable-512.png'), render(512, { maskable: true }));
+// iPhone and iPad round the corners themselves, so the home-screen icon is full bleed.
+writeFileSync(join(outDir, 'icon-180.png'), render(180, { maskable: true }));
 writeFileSync(join(outDir, 'favicon.svg'), svg);
 console.log('Icons written to', outDir);

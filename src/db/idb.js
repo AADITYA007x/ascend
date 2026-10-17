@@ -1,7 +1,7 @@
 // A small promise wrapper around IndexedDB. No library.
 
 const DB_NAME = 'ascend';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 // Stores and their indexes. Bump DB_VERSION and extend upgrade() for future changes.
 function upgrade(db, oldVersion) {
@@ -39,6 +39,13 @@ function upgrade(db, oldVersion) {
     const cards = db.createObjectStore('cards', { keyPath: 'id' });
     cards.createIndex('topicId', 'topicId');
     cards.createIndex('subjectId', 'subjectId');
+  }
+  if (oldVersion < 4) {
+    // Milestone 9: attendance, one record per class per date (id = slotId|date).
+    const attendance = db.createObjectStore('attendance', { keyPath: 'id' });
+    attendance.createIndex('semesterId', 'semesterId');
+    attendance.createIndex('subjectId', 'subjectId');
+    attendance.createIndex('slotId', 'slotId');
   }
 }
 

@@ -7,11 +7,12 @@ import { toast } from '../ui/toast.js';
 import { state, reload } from '../state.js';
 import { saveSemester } from '../db/repo.js';
 import { makeSemester, withSemesterDefaults } from '../model/factory.js';
-import { validateSemester } from '../model/validate.js';
+import { validateSemester, validateAttendanceMin, ATTENDANCE_LIMITS } from '../model/validate.js';
 import { STREAK } from '../model/streak.js';
 import { semesterTotals, setupProgress } from '../model/summary.js';
 import { formatMinutes, formatDate, daysBetween, todayYMD, addDays } from '../model/time.js';
 import { navigate, rerender } from '../router.js';
+import { installCard } from '../ui/install.js';
 
 const STEP_ROUTES = {
   semester: 'semester',
@@ -95,12 +96,13 @@ export function renderSemester() {
     h('p', { class: 'muted' }, `Daily study limit: ${formatMinutes(s.dailyLimitMin)}`),
     h('p', { class: 'muted' }, `Study between ${settings.studyFrom} and ${settings.studyTo} · ${bufferLabel(settings.bufferDays)} before exams`),
     h('p', { class: 'muted' }, `A streak day needs ${formatMinutes(settings.streakMinMin)} of study`),
+    h('p', { class: 'muted' }, `Minimum attendance: ${settings.attendanceMin}%`),
   );
 
   return {
     title: 'Semester',
     top: topbar(s.name, { back: '#/progress', action: editBtn, subtitle: 'Your semester' }),
-    body: [checklist, dates, stats],
+    body: [checklist, dates, stats, installCard()].filter(Boolean),
   };
 }
 
@@ -202,6 +204,18 @@ export function openSemesterSheet(existing) {
       ),
       h('p', { class: 'field-hint' }, `Study at least this much in a day to keep your streak going. You get ${STREAK.tokensPerMonth} rest tokens a month for days off.`),
     ),
+    field(
+      'attendanceMin',
+      'Minimum attendance',
+      stepper('attendanceMin', s.attendanceMin, {
+        min: ATTENDANCE_LIMITS.minMin,
+        max: ATTENDANCE_LIMITS.minMax,
+        step: 5,
+        format: (n) => `${n}%`,
+        label: 'minimum attendance',
+      }),
+      { hint: 'Your college’s rule, often 75%. Ascend gives you a gentle heads-up before a subject gets close.' },
+    ),
   );
 
   openSheet({
@@ -220,8 +234,11 @@ export function openSemesterSheet(existing) {
         studyTo: String(fd.get('studyTo') ?? ''),
         bufferDays: Number(fd.get('bufferDays')),
         streakMinMin: Number(fd.get('streakMinMin')) || STREAK.defaultMinMin,
+        attendanceMin: Number(fd.get('attendanceMin')),
       };
       const v = validateSemester(next);
+      Object.assign(v.errors, validateAttendanceMin(next.attendanceMin).errors);
+      v.ok = Object.keys(v.errors).length === 0;
       showMessages(form, v);
       if (!v.ok) return false;
       await saveSemester(next);

@@ -11,6 +11,7 @@ import { weekStart, weekSummary, weekStory } from '../model/story.js';
 import { climbModel } from '../model/climb.js';
 import { skyModel } from '../model/sky.js';
 import { climbScene } from '../ui/scene.js';
+import { installCard } from '../ui/install.js';
 import { streakModel, streakLine } from '../model/streak.js';
 import { summitReached } from '../model/summit.js';
 import { DEADLINE_LABELS } from '../model/validate.js';
@@ -26,7 +27,7 @@ const nowMinutes = () => {
 /** Statuses for every coming deadline, from a plan built for today. */
 export function trackFor(plan, today) {
   const semester = withSemesterDefaults(state.semester);
-  const pace = recentPace({ semester, slots: state.slots, sessions: state.sessions, today });
+  const pace = recentPace({ semester, slots: state.slots, sessions: state.sessions, attendance: state.attendance, today });
   return trackStatus({ plan, deadlines: state.deadlines, topics: state.topics, sessions: state.sessions, semester, today, pace });
 }
 
@@ -103,6 +104,7 @@ export function renderProgress() {
         summitDone: summitReached(state.summit, state.sessions, today),
       }),
       headlineCard(statuses, all),
+      installCard(),
       streakCard(streakModel({ sessions: state.sessions, semester, today })),
       comingUp(statuses, today),
       chartCard(today, semester),

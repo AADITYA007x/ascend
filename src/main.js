@@ -6,6 +6,7 @@ import { state, reload } from './state.js';
 import { startRouter } from './router.js';
 import { setupProgress } from './model/summary.js';
 import { h } from './ui/dom.js';
+import './ui/install.js'; // listens for the browser's install prompt from the start
 import { renderToday } from './screens/today.js';
 import { renderSemester } from './screens/semester.js';
 import { renderSubjects } from './screens/subjects.js';
@@ -16,6 +17,7 @@ import { renderFocus } from './screens/focus.js';
 import { renderProgress } from './screens/progress.js';
 import { renderCards } from './screens/cards.js';
 import { renderQuiz } from './screens/quiz.js';
+import { renderAttendance } from './screens/attendance.js';
 
 // Every screen except Semester needs a semester first.
 const needsSemester = (render) => (...args) => (state.semester ? render(...args) : renderSemester());
@@ -31,6 +33,7 @@ const routes = {
   focus: { render: needsSemester(renderFocus), tab: 'today' },
   cards: { render: needsSemester(renderCards), tab: 'subjects' },
   quiz: { render: needsSemester(renderQuiz), tab: 'today' },
+  attendance: { render: needsSemester(renderAttendance), tab: 'timetable' },
 };
 
 function defaultRoute() {

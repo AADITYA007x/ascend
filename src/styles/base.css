@@ -8,6 +8,8 @@
 html {
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
+  /* Installed app: no pull-to-refresh or rubber-banding behind the content. */
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -18,6 +20,24 @@ body {
   font-size: 16px;
   line-height: 1.45;
   overflow-x: hidden;
+  overscroll-behavior-y: none;
+}
+
+/* No double-tap-zoom delay on things you tap; no accidental text selection on controls. */
+button,
+a,
+label,
+summary,
+.chip {
+  touch-action: manipulation;
+}
+
+button,
+.tabbar,
+.chip,
+.btn {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 h1,
@@ -33,7 +53,8 @@ a {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
   color: inherit;
 }
@@ -835,6 +856,7 @@ details.past .card {
 
 /* ---------- Bottom sheet ---------- */
 dialog.sheet {
+  overscroll-behavior: contain;
   margin: auto auto 0;
   padding: 0;
   border: 0;
@@ -2262,5 +2284,220 @@ select.input {
 @media (prefers-reduced-motion: reduce) {
   .flashcard-back {
     animation: none;
+  }
+}
+
+/* ---------- Attendance (Milestone 9) ---------- */
+.class-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.class-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.class-row:first-child {
+  padding-top: 4px;
+}
+
+.class-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 4px;
+}
+
+.class-row-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.class-row-head .subject-dot {
+  width: 10px;
+  height: 10px;
+}
+
+.class-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.class-time {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.mark-chips {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.mark-chip {
+  min-height: 44px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1.5px solid var(--line);
+  background: var(--bg);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.mark-chip[aria-pressed='true'] {
+  border-color: transparent;
+}
+
+.mark-present[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* Warm, not alarming: a missed class is just a fact. */
+.mark-absent[aria-pressed='true'] {
+  background: var(--warn-soft);
+  color: var(--warn);
+  border-color: var(--warn);
+}
+
+.mark-cancelled[aria-pressed='true'] {
+  background: var(--surface-2);
+  color: var(--muted);
+  border-color: var(--muted);
+  text-decoration: line-through;
+}
+
+.sheet-subhead {
+  display: block;
+  margin-top: 14px;
+}
+
+.attendance-note {
+  margin-top: -2px;
+}
+
+.classes-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px;
+  margin: 4px -12px -8px;
+}
+
+.attendance-summary > .icon:first-child {
+  color: var(--accent);
+}
+
+.attendance-card .card-main {
+  gap: 2px;
+}
+
+.attendance-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.attendance-head .card-heading {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attendance-pct {
+  flex: none;
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.level-below .attendance-pct {
+  color: var(--warn);
+}
+
+/* The meter marks where the minimum sits. */
+.attendance-meter {
+  position: relative;
+  display: block;
+  margin: 8px 0 4px;
+  overflow: visible;
+}
+
+.attendance-meter .meter-fill {
+  overflow: hidden;
+}
+
+.attendance-meter::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: var(--min);
+  width: 2px;
+  border-radius: 2px;
+  background: var(--text);
+  opacity: 0.55;
+}
+
+/* ---------- Install (Milestone 9) ---------- */
+.install-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.install-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.install-head .icon {
+  color: var(--accent);
+}
+
+.install-head .card-title {
+  margin: 0;
+}
+
+.install-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.install-actions:empty {
+  display: none;
+}
+
+/* Very narrow phones (360 px and below): a little more room for content. */
+@media (max-width: 360px) {
+  :root {
+    --pad: 12px;
+  }
+
+  .mark-chip {
+    font-size: 0.85rem;
+  }
+
+  .tab.active .icon {
+    padding: 2px 12px;
   }
 }
