@@ -2831,3 +2831,142 @@ select.input {
     animation: none;
   }
 }
+
+/* ---------- Syllabus import ---------- */
+.import-pages {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.page-thumbs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px;
+}
+
+.page-thumb {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+.page-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.page-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 32px;
+  height: 32px;
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+}
+
+.upload-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+
+.upload-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.upload-bar {
+  width: 100%;
+  height: 10px;
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.upload-bar::-webkit-progress-bar {
+  background: var(--surface-2);
+  border-radius: 999px;
+}
+
+.upload-bar::-webkit-progress-value {
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.upload-bar::-moz-progress-bar {
+  background: var(--accent);
+  border-radius: 999px;
+}
+
+.pick-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  cursor: pointer;
+}
+
+.pick-row input {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  accent-color: var(--accent);
+}
+
+.pick-row .card-heading {
+  overflow-wrap: anywhere;
+}
+
+.read-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.read-row > .icon {
+  color: var(--accent);
+}
+
+.review-unit {
+  border-top: 1px solid var(--line);
+}
+
+.review-unit > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 4px 0;
+  list-style: none;
+  cursor: pointer;
+}
+
+.review-unit > summary::-webkit-details-marker {
+  display: none;
+}
+
+.unit-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.review-unit .topics {
+  border-top: 0;
+}
+
+.subj-create {
+  grid-template-columns: 2fr 1fr;
+}

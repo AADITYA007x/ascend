@@ -11,10 +11,12 @@ import { validateSubject } from '../model/validate.js';
 import { subjectTotals, semesterTotals } from '../model/summary.js';
 import { formatMinutes } from '../model/time.js';
 import { navigate, rerender } from '../router.js';
+import { renderSyllabusImport } from './syllabus-import.js';
 
 export const creditsLabel = (n) => `${n} credit${n === 1 ? '' : 's'}`;
 
-export function renderSubjects() {
+export function renderSubjects(sub, focusId) {
+  if (sub === 'import') return renderSyllabusImport(focusId);
   const totals = semesterTotals(state);
   const subtitle = state.subjects.length
     ? `${totals.subjects} subject${totals.subjects === 1 ? '' : 's'} · ${creditsLabel(totals.credits)}`
@@ -50,13 +52,22 @@ export function renderSubjects() {
           );
         }),
       )
-    : emptyState('No subjects yet', 'Start with the subjects you’re taking this semester. You can add units and topics to each one next.');
+    : emptyState(
+        'No subjects yet',
+        'Add the subjects you’re taking this semester, or let Ascend read them, with their units and topics, from your syllabus.',
+        importLink('btn btn-primary'),
+      );
 
   return {
     title: 'Subjects',
     top: topbar('Subjects', { subtitle }),
-    body: [list, fab('Add subject', () => openSubjectSheet(null))],
+    body: [state.subjects.length ? importLink('btn btn-quiet import-link') : null, list, fab('Add subject', () => openSubjectSheet(null))].filter(Boolean),
   };
+}
+
+/** "Import from syllabus": subjects, units and topics in one go. */
+function importLink(cls) {
+  return h('a', { href: '#/subjects/import', class: cls }, icon('file', 18), 'Import from syllabus');
 }
 
 export function openSubjectSheet(existing) {

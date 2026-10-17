@@ -14,18 +14,8 @@ function canvasBlob(canvas, quality) {
   return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
 }
 
-/**
- * A picked file → { mimeType, data (base64), previewUrl, sizeKb }.
- * Photos become a JPEG of at most maxImageSide px (turned the right way up); PDFs go as they are.
- * Throws an Error with a calm message when the file can't be used.
- */
-export async function prepareFile(file) {
-  if (file.type === 'application/pdf') {
-    if (file.size > IMPORT.maxBytes) throw new Error('That PDF is over 4 MB. Try a photo or screenshot of the timetable page instead.');
-    return { mimeType: 'application/pdf', data: await toBase64(file), previewUrl: null, sizeKb: Math.round(file.size / 1024) };
-  }
-  if (!file.type.startsWith('image/')) throw new Error('Pick a photo or a PDF of your timetable.');
-
+/** A photo → a JPEG Blob of at most maxImageSide px, turned the right way up. Throws a calm Error. */
+async function shrinkImage(file) {
   let bitmap;
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
@@ -45,5 +35,33 @@ export async function prepareFile(file) {
   let blob = await canvasBlob(canvas, IMPORT.jpegQuality);
   if (blob && blob.size > IMPORT.maxBytes) blob = await canvasBlob(canvas, 0.6);
   if (!blob || blob.size > IMPORT.maxBytes) throw new Error('That photo is too big to send. Try a screenshot instead.');
+  return blob;
+}
+
+/**
+ * A picked file → { mimeType, data (base64), previewUrl, sizeKb }, for sending inside a JSON request.
+ * Photos become a JPEG of at most maxImageSide px; PDFs go as they are (up to 4 MB).
+ * Throws an Error with a calm message when the file can't be used.
+ */
+export async function prepareFile(file) {
+  if (file.type === 'application/pdf') {
+    if (file.size > IMPORT.maxBytes) throw new Error('That PDF is over 4 MB. Try a photo or screenshot of the timetable page instead.');
+    return { mimeType: 'application/pdf', data: await toBase64(file), previewUrl: null, sizeKb: Math.round(file.size / 1024) };
+  }
+  if (!file.type.startsWith('image/')) throw new Error('Pick a photo or a PDF of your timetable.');
+  const blob = await shrinkImage(file);
   return { mimeType: 'image/jpeg', data: await toBase64(blob), previewUrl: URL.createObjectURL(blob), sizeKb: Math.round(blob.size / 1024) };
+}
+
+/**
+ * A picked file → a Blob ready to upload as is (for big files like a whole syllabus).
+ * PDFs up to maxPdfBytes go unchanged; photos are shrunk as above.
+ */
+export async function prepareBlob(file, { maxPdfBytes }) {
+  if (file.type === 'application/pdf') {
+    if (file.size > maxPdfBytes) throw new Error(`That PDF is over ${Math.round(maxPdfBytes / 1024 / 1024)} MB. Try the pages for your semester only.`);
+    return file;
+  }
+  if (!file.type.startsWith('image/')) throw new Error('Pick a PDF or photos of the pages.');
+  return shrinkImage(file);
 }

@@ -3,6 +3,8 @@
 A tiny Cloudflare Worker that asks Gemini for help with two things:
 - **Make cards from my notes**: pasted notes become draft flashcards.
 - **Import timetable**: a photo or PDF of your class timetable becomes a list of classes.
+- **Import from syllabus**: a syllabus PDF (up to 50 MB) or page photos become subjects, units and topics.
+  Big files are stored with Google only for the import (deleted afterwards, and within 48 h at most).
 
 You check and edit everything before it is saved. The Gemini key lives only in a Worker secret and
 is never in the app. Ascend works fully without this.

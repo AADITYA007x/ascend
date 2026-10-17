@@ -164,3 +164,28 @@ describe('timetable speed setting', () => {
     expect(both).toHaveBeenCalledTimes(2);
   });
 });
+
+describe('backup model', () => {
+  it('tries the backup model when the main one’s free limit is used up', async () => {
+    const urls = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url) => {
+        urls.push(String(url));
+        return String(url).includes('gemini-3.8-flash')
+          ? new Response('{"error":{"code":429}}', { status: 429 })
+          : geminiReply(JSON.stringify([{ front: 'Q', back: 'A' }]));
+      }),
+    );
+    const res = await worker.fetch(req({ notes: 'n' }), env);
+    expect(res.status).toBe(200);
+    expect(urls.map((u) => u.match(/models\/([^:]+)/)[1])).toEqual(['gemini-3.8-flash', 'gemini-3.5-flash-lite']);
+  });
+  it('uses the backup model from settings, and says "free limit" when both are used up', async () => {
+    const spy = vi.fn(async () => new Response('{}', { status: 429 }));
+    vi.stubGlobal('fetch', spy);
+    const res = await worker.fetch(req({ notes: 'n' }), { ...env, GEMINI_FALLBACK_MODEL: 'gemini-x-lite' });
+    expect(res.status).toBe(429);
+    expect(spy.mock.calls.map(([u]) => String(u).match(/models\/([^:]+)/)[1])).toEqual(['gemini-3.8-flash', 'gemini-x-lite']);
+  });
+});

@@ -5,7 +5,10 @@ const BASE = String(import.meta.env.VITE_CARDS_URL ?? '').trim().replace(/\/+$/,
 
 export const helperEnabled = () => Boolean(BASE);
 
-/** An error with a calm message that is safe to show as is. kind: 'cancel' when you cancelled. */
+/**
+ * An error with a calm message that is safe to show as is.
+ * kind: 'cancel' when you cancelled, 'limit' when Gemini's free limit was reached (worth waiting and retrying).
+ */
 export class HelperError extends Error {
   constructor(message, kind = 'error') {
     super(message);
@@ -34,7 +37,7 @@ export async function postHelper(path, body, { timeoutMs = 30000, signal } = {})
       signal: ctrl.signal,
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new HelperError(data.error || 'The helper couldn’t do that right now. Try again in a bit.');
+    if (!res.ok) throw new HelperError(data.error || 'The helper couldn’t do that right now. Try again in a bit.', res.status === 429 ? 'limit' : 'error');
     return data;
   } catch (err) {
     if (err instanceof HelperError) throw err;
@@ -46,4 +49,40 @@ export async function postHelper(path, body, { timeoutMs = 30000, signal } = {})
     clearTimeout(timer);
     signal?.removeEventListener('abort', onCancel);
   }
+}
+
+/**
+ * Uploads a big file (PDF or photo) to the helper, which keeps it with Google for this import.
+ * Uses XMLHttpRequest so a progress bar can follow the upload (onProgress gets 0–1).
+ * Resolves with { uri, name, mimeType }.
+ */
+export function uploadToHelper(blob, { onProgress, signal, timeoutMs = 5 * 60 * 1000 } = {}) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${BASE}/upload`);
+    xhr.setRequestHeader('Content-Type', blob.type || 'application/octet-stream');
+    xhr.timeout = timeoutMs;
+    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress?.(e.loaded / e.total);
+    xhr.onload = () => {
+      let data = {};
+      try {
+        data = JSON.parse(xhr.responseText);
+      } catch {
+        /* not JSON */
+      }
+      if (xhr.status >= 200 && xhr.status < 300 && data.file) resolve(data.file);
+      else reject(new HelperError(data.error || 'The upload didn’t finish. Try again.'));
+    };
+    xhr.onerror = () => reject(new HelperError('Couldn’t reach the helper. Check your connection and try again.'));
+    xhr.ontimeout = () => reject(new HelperError('The upload took too long. Try a smaller file or fewer pages.'));
+    xhr.onabort = () => reject(new HelperError('Cancelled.', 'cancel'));
+    signal?.addEventListener('abort', () => xhr.abort());
+    xhr.send(blob);
+  });
+}
+
+/** Asks the helper to delete uploaded files now (they'd be deleted within 48 h anyway). Never throws. */
+export function deleteHelperFiles(names) {
+  if (!BASE || !names?.length) return;
+  postHelper('/files/delete', { names }, { timeoutMs: 15000 }).catch(() => {});
 }

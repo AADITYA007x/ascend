@@ -50,7 +50,8 @@ export function renderSubject(subjectId) {
     ? h('div', { class: 'units' }, units.map((u) => unitBlock(subject, u)))
     : emptyState(
         'No units yet',
-        'Add the units from your syllabus (Unit 1, Unit 2…). Then list the topics inside each one with a rough time estimate.',
+        'Add the units from your syllabus (Unit 1, Unit 2…), or let Ascend read them from the syllabus for you.',
+        h('a', { href: `#/subjects/import/${encodeURIComponent(subject.id)}`, class: 'btn btn-primary' }, icon('file', 18), 'Import this subject’s units'),
       );
 
   return {

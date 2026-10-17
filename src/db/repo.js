@@ -243,9 +243,20 @@ export function saveImport({ subjects = [], slots = [], removeSlotIds = [] }) {
   });
 }
 
+/** Saves an imported syllabus (only new records). Returns what undoImport needs. */
+export function saveSyllabusImport({ subjects = [], units = [], topics = [] }) {
+  return tx(['subjects', 'units', 'topics'], 'readwrite', (t) => {
+    for (const s of subjects) t.objectStore('subjects').put(s);
+    for (const u of units) t.objectStore('units').put(u);
+    for (const tp of topics) t.objectStore('topics').put(tp);
+    return { added: { subjects: subjects.map((s) => s.id), units: units.map((u) => u.id), topics: topics.map((tp) => tp.id) }, removed: {} };
+  });
+}
+
 /** Takes an import back: removes what it added and puts back what it replaced. */
 export function undoImport({ added, removed }) {
-  return tx(['subjects', 'classSlots', 'attendance'], 'readwrite', (t) => {
+  const stores = [...new Set([...Object.keys(added), ...Object.keys(removed)])];
+  return tx(stores, 'readwrite', (t) => {
     for (const [store, ids] of Object.entries(added)) for (const id of ids) t.objectStore(store).delete(id);
     for (const [store, records] of Object.entries(removed)) for (const r of records) t.objectStore(store).put(r);
   });
