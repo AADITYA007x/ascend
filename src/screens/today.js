@@ -20,6 +20,9 @@ import { headline } from '../model/track.js';
 import { weekStart } from '../model/story.js';
 import { skyModel } from '../model/sky.js';
 import { skyBand } from '../ui/scene.js';
+import { planningTopics } from '../model/estimate.js';
+import { streakModel, streakLine, streakNudge, restTokenNote } from '../model/streak.js';
+import { resolveSummit, summitReached, isSummitItem } from '../model/summit.js';
 
 const PHASE_LABELS = { keepup: 'Keeping up', exam: 'Exam mode' };
 
@@ -46,6 +49,8 @@ export function renderToday() {
   const body = [];
   const sky = skyModel({ ...state, semester, today });
   if (sky.text) body.push(skyBand(sky));
+  const streak = streakModel({ sessions: state.sessions, semester, today });
+  if (streak.days.length) body.push(streakRow(streak));
   const running = timerCard();
   if (running) body.push(running);
   const story = weekStoryCard(today, semester);
@@ -61,10 +66,11 @@ export function renderToday() {
   const studied = minutesStudiedOn(state.sessions, today);
   const isOff = semester.offDays.includes(today);
 
+  const summit = todaySummit(day, today);
   if (day) {
-    body.push(...todayBlocks(day, { plan, semester, today, studied, isOff }));
+    body.push(...todayBlocks(day, { plan, semester, today, studied, isOff, summit }));
   }
-  const doneList = doneToday(today);
+  const doneList = doneToday(today, summit);
   if (doneList) body.push(doneList);
 
   const note = trackNote(plan, today);
@@ -85,7 +91,7 @@ export function renderToday() {
   if (ahead.length) body.push(weekAhead(ahead, today, Boolean(day)));
 
   if (day && !isOff && day.items.length) {
-    body.push(h('button', { type: 'button', class: 'btn btn-quiet', onclick: () => takeDayOff(today) }, 'Take today off'));
+    body.push(h('button', { type: 'button', class: 'btn btn-quiet', onclick: () => takeDayOff(today, streak) }, 'Take today off'));
   }
 
   return {
@@ -96,7 +102,7 @@ export function renderToday() {
 }
 
 /** The summary card and today's blocks, or a calm note when there's nothing to do. */
-function todayBlocks(day, { plan, semester, today, studied, isOff }) {
+function todayBlocks(day, { plan, semester, today, studied, isOff, summit }) {
   if (isOff) {
     return [
       h(
@@ -127,6 +133,9 @@ function todayBlocks(day, { plan, semester, today, studied, isOff }) {
       ),
     );
   }
+
+  const reached = summit && summitReached(summit, state.sessions, today);
+  if (reached) out.push(summitNote(summit));
 
   if (!day.items.length) {
     const allDone = plan.unscheduled.length === 0 && plan.days.every((d) => d.items.length === 0);
@@ -161,11 +170,11 @@ function todayBlocks(day, { plan, semester, today, studied, isOff }) {
       ),
     ),
   );
-  out.push(h('ul', { class: 'cards' }, day.items.map((item) => h('li', {}, blockCard(item, today)))));
+  out.push(h('ul', { class: 'cards' }, day.items.map((item) => h('li', {}, blockCard(item, today, isSummitItem(summit, item))))));
   return out;
 }
 
-function blockCard(item, today) {
+function blockCard(item, today, isSummit = false) {
   const topic = state.topics.find((t) => t.id === item.topicId);
   const subject = subjectById(item.subjectId);
   const partLabel = item.parts > 1 ? ` (${item.part}/${item.parts})` : '';
@@ -174,7 +183,7 @@ function blockCard(item, today) {
     'button',
     {
       type: 'button',
-      class: `card card-link plan-block${isReview ? ' review-block' : ''}`,
+      class: `card card-link plan-block${isReview ? ' review-block' : ''}${isSummit ? ' summit-block' : ''}`,
       style: { '--subject': subject?.color ?? 'var(--accent)' },
       onclick: () => openStartSheet(item),
     },
@@ -182,7 +191,14 @@ function blockCard(item, today) {
     h(
       'span',
       { class: 'card-main' },
-      h('span', { class: 'card-heading' }, isReview ? h('span', { class: 'review-tag' }, 'Review') : null, topic?.name ?? 'Topic', partLabel),
+      h(
+        'span',
+        { class: 'card-heading' },
+        isSummit ? h('span', { class: 'summit-tag' }, icon('flag', 13), 'Summit') : null,
+        isReview ? h('span', { class: 'review-tag' }, 'Review') : null,
+        topic?.name ?? 'Topic',
+        partLabel,
+      ),
       h('span', { class: 'muted small' }, `${subject?.name ?? ''} · ${isReview ? reviewReason(item) : reason(item, today)}`),
     ),
     h('span', { class: 'pill' }, formatMinutes(item.minutes)),
@@ -204,7 +220,7 @@ function reviewReason(item) {
   return item.review ? `Review ${item.review} of ${REVIEWS}` : 'A look back';
 }
 
-function doneToday(today) {
+function doneToday(today, summit) {
   const sessions = state.sessions.filter((s) => s.date === today);
   if (!sessions.length) return null;
   return h(
@@ -224,7 +240,12 @@ function doneToday(today) {
           h(
             'span',
             { class: 'card-main' },
-            h('span', { class: 'card-heading' }, topic?.name ?? 'Topic'),
+            h(
+              'span',
+              { class: 'card-heading' },
+              summitReached(summit, [s], today) ? h('span', { class: 'summit-tag' }, icon('flag', 13), 'Summit') : null,
+              topic?.name ?? 'Topic',
+            ),
             h(
               'span',
               { class: 'muted small' },
@@ -333,10 +354,58 @@ function timerCard() {
   return card;
 }
 
-function takeDayOff(today) {
+/** Today's summit: kept once chosen; picked (and saved) on the first render of the day. */
+function todaySummit(day, today) {
+  const items = day?.date === today ? day.items : [];
+  const { summit, changed } = resolveSummit({ stored: state.summit, items, topics: planningTopics(state.topics, state.sessions), today });
+  if (changed) {
+    state.summit = summit;
+    setMeta('summit', summit).catch(() => {}); // only a convenience: it is picked again if this fails
+  }
+  return summit;
+}
+
+/** "Summit reached", once today's hardest topic is done. Links to the climb. */
+function summitNote(summit) {
+  const topic = state.topics.find((t) => t.id === summit.topicId);
+  return h(
+    'a',
+    { href: '#/progress', class: 'summit-note' },
+    icon('flag', 18),
+    h(
+      'span',
+      { class: 'card-main' },
+      h('span', { class: 'summit-note-title' }, 'Summit reached'),
+      h('span', { class: 'muted small' }, `${topic?.name ?? 'Topic'} · the hardest climb of the day is done`),
+    ),
+  );
+}
+
+/** The streak, gently: "6-day streak · 2 rest tokens left", with the tokens as leaves. Links to Progress. */
+function streakRow(m) {
+  const nudge = streakNudge(m);
+  const leaves = Array.from({ length: m.tokensPerMonth }, (_, i) =>
+    h('span', { class: `token${i < m.tokensLeft ? '' : ' used'}` }, icon('leaf', 16)),
+  );
+  return h(
+    'a',
+    { href: '#/progress', class: `streak-row${m.todayDone ? ' done' : ''}` },
+    h('span', { class: 'streak-icon' }, icon('peak', 20)),
+    h('span', { class: 'card-main' }, h('span', { class: 'streak-line' }, streakLine(m)), nudge ? h('span', { class: 'muted small' }, nudge) : null),
+    h('span', { class: 'tokens', 'aria-hidden': 'true' }, leaves),
+  );
+}
+
+function takeDayOff(today, streak) {
+  const note = restTokenNote(streak);
   openSheet({
     title: 'Take today off?',
-    body: h('p', { class: 'confirm-text' }, 'Today’s study moves to the coming days. Rest is part of the climb.'),
+    body: h(
+      'div',
+      {},
+      h('p', { class: 'confirm-text' }, 'Today’s study moves to the coming days. Rest is part of the climb.'),
+      note ? h('p', { class: 'muted rest-token-note' }, icon('leaf', 16), note) : null,
+    ),
     submitLabel: 'Take the day off',
     onSubmit: async () => {
       await setOffDay(today, true);

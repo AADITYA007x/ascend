@@ -1774,3 +1774,313 @@ select.input {
 .sky-band.mood-night {
   background: linear-gradient(var(--sky-top-night), var(--sky-bottom-night));
 }
+
+/* ---------- Streak and the daily summit (Milestone 7) ---------- */
+.streak-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--tap);
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.streak-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.streak-row.done .streak-icon {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.streak-line {
+  font-weight: 650;
+}
+
+.tokens {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  color: var(--leaf);
+}
+
+.token.used {
+  opacity: 0.25;
+}
+
+.summit-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-right: 8px;
+  padding: 1px 8px 1px 6px;
+  border-radius: 999px;
+  background: var(--summit-soft);
+  color: var(--summit-ink);
+  font-size: 0.75rem;
+  font-weight: 700;
+  vertical-align: 2px;
+}
+
+.summit-block {
+  box-shadow: var(--shadow), inset 0 0 0 1.5px var(--summit-soft);
+}
+
+.summit-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--tap);
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--summit-soft);
+  color: var(--summit-ink);
+  text-decoration: none;
+}
+
+.summit-note .muted {
+  color: inherit;
+  opacity: 0.85;
+}
+
+.summit-note-title {
+  font-weight: 700;
+}
+
+.rest-token-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.rest-token-note .icon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--leaf);
+}
+
+/* Progress: the streak card */
+.streak-big {
+  margin: 0 0 12px;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.day-strip {
+  display: grid;
+  grid-template-columns: repeat(14, 1fr);
+  gap: 4px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.day-dot {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  max-width: 22px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  color: var(--leaf);
+}
+
+.day-dot.studied {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.day-dot.rested {
+  border-color: transparent;
+  background: var(--surface-2);
+}
+
+.day-dot.missed {
+  border-style: dashed;
+}
+
+.day-dot.before {
+  border-color: transparent;
+  background: var(--surface-2);
+  opacity: 0.4;
+}
+
+.day-dot.today {
+  border: 2px solid var(--accent);
+}
+
+.day-dot.today.studied {
+  background: var(--accent);
+}
+
+.token-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+}
+
+/* The climb: a pennant once today's summit is done */
+.scene-pennant {
+  pointer-events: none;
+}
+
+/* The celebration */
+.celebrate {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(30, 24, 18, 0.35);
+  animation: cel-fade 0.25s ease-out;
+}
+
+.celebrate.leaving {
+  opacity: 0;
+  transition: opacity 0.25s ease-in;
+}
+
+.celebrate-card {
+  width: 100%;
+  max-width: 320px;
+  padding: 20px 20px 24px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-lift);
+  text-align: center;
+  animation: cel-rise 0.35s ease-out;
+}
+
+.cel-art {
+  display: block;
+  margin: 0 auto 8px;
+  width: 160px;
+}
+
+.cel-hill {
+  fill: var(--hill-far);
+}
+
+.cel-mountain {
+  fill: var(--accent);
+}
+
+.cel-snow {
+  fill: var(--snow);
+}
+
+.cel-pole {
+  stroke: var(--text);
+  stroke-width: 1.5;
+}
+
+.cel-cloth {
+  fill: var(--sun);
+}
+
+.cel-flag {
+  animation: cel-flag 0.7s 0.15s ease-out both;
+}
+
+.cel-spark {
+  fill: var(--sun);
+  opacity: 0;
+  animation: cel-spark 1.4s ease-out 0.6s 2;
+}
+
+.cel-spark.s2 {
+  animation-delay: 0.75s;
+}
+
+.cel-spark.s3 {
+  animation-delay: 0.9s;
+}
+
+.cel-spark.s4 {
+  animation-delay: 1.05s;
+}
+
+.celebrate-title {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.celebrate-topic {
+  margin: 4px 0 6px;
+  font-weight: 600;
+  color: var(--summit-ink);
+  overflow-wrap: anywhere;
+}
+
+@keyframes cel-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes cel-rise {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+}
+
+@keyframes cel-flag {
+  from {
+    transform: translateY(22px);
+    opacity: 0;
+  }
+}
+
+@keyframes cel-spark {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.3);
+  }
+}
+
+.cel-spark {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .celebrate,
+  .celebrate-card,
+  .cel-flag {
+    animation: none;
+  }
+
+  .cel-spark {
+    animation: none;
+    opacity: 1;
+  }
+
+  .celebrate.leaving {
+    transition: none;
+  }
+}

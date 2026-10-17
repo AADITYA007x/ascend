@@ -23,6 +23,7 @@ export const SEMESTER_DEFAULTS = {
   focusMin: 25,
   breakMin: 5,
   keepAwake: true, // keep the screen on while the focus timer runs
+  streakMinMin: 10, // Milestone 7: study a day needs to count for the streak
 };
 
 export function makeSemester(fields = {}) {

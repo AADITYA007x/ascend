@@ -11,6 +11,8 @@ import { weekStart, weekSummary, weekStory } from '../model/story.js';
 import { climbModel } from '../model/climb.js';
 import { skyModel } from '../model/sky.js';
 import { climbScene } from '../ui/scene.js';
+import { streakModel, streakLine } from '../model/streak.js';
+import { summitReached } from '../model/summit.js';
 import { DEADLINE_LABELS } from '../model/validate.js';
 import { addDays, daysBetween, formatDate, formatMinutes, relativeDays, todayYMD, WEEKDAYS_SHORT, weekdayMon0 } from '../model/time.js';
 
@@ -97,14 +99,61 @@ export function renderProgress() {
     title: 'Progress',
     top,
     body: [
-      climbScene(climbModel({ ...state, semester, today }), skyModel({ ...state, semester, today }), today),
+      climbScene(climbModel({ ...state, semester, today }), skyModel({ ...state, semester, today }), today, {
+        summitDone: summitReached(state.summit, state.sessions, today),
+      }),
       headlineCard(statuses, all),
+      streakCard(streakModel({ sessions: state.sessions, semester, today })),
       comingUp(statuses, today),
       chartCard(today, semester),
       subjectsCard(perSubject),
       storyCard(today, semester),
     ].filter(Boolean),
   };
+}
+
+const DAY_STATES = {
+  studied: 'studied',
+  rested: 'a rest token kept the streak',
+  missed: 'a quiet day',
+  before: 'before your first study day',
+};
+
+/** The streak: current and best, the last 14 days as dots, and the rest tokens left. */
+function streakCard(m) {
+  if (!m.days.length) return null;
+  const days = m.days.slice(-14);
+  const dot = (d) => {
+    const label = d.state === 'today' ? (m.todayDone ? 'today, studied' : 'today, still to come') : DAY_STATES[d.state];
+    const cls = d.state === 'today' ? `today${m.todayDone ? ' studied' : ''}` : d.state;
+    return h(
+      'li',
+      { class: `day-dot ${cls}`, title: `${formatDate(d.date)}: ${label}` },
+      d.state === 'rested' ? icon('leaf', 12) : null,
+      h('span', { class: 'visually-hidden' }, `${formatDate(d.date)}: ${label}`),
+    );
+  };
+  const leaves = Array.from({ length: m.tokensPerMonth }, (_, i) => h('span', { class: `token${i < m.tokensLeft ? '' : ' used'}` }, icon('leaf', 16)));
+  const left = m.tokensLeft === 1 ? '1 rest token left' : `${m.tokensLeft} rest tokens left`;
+  return h(
+    'section',
+    { class: 'card streak-card' },
+    h('h2', { class: 'card-title' }, 'Streak'),
+    h(
+      'p',
+      { class: 'streak-big' },
+      m.current ? `${m.current} day${m.current === 1 ? '' : 's'}` : streakLine(m),
+      m.best > m.current ? h('span', { class: 'muted small' }, ` · best ${m.best}`) : null,
+    ),
+    h('ol', { class: 'day-strip', 'aria-label': 'The last 14 days' }, days.map(dot)),
+    h(
+      'p',
+      { class: 'token-line small' },
+      h('span', { class: 'tokens', 'aria-hidden': 'true' }, leaves),
+      `${left} · refills ${formatDate(m.refillDate)}`,
+    ),
+    h('p', { class: 'muted small' }, `A day counts with ${formatMinutes(m.minMin)} of study. Rest tokens keep your streak on days you rest.`),
+  );
 }
 
 function progressBar(fraction, label) {

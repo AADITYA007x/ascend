@@ -6,12 +6,14 @@ import { openSheet } from '../ui/sheet.js';
 import { toast } from '../ui/toast.js';
 import { canAskNotify, askNotify, unlockAudio, wakeLockSupported } from '../ui/alerts.js';
 import { state, reload, subjectById } from '../state.js';
-import { saveSession, saveTimerSession, deleteSession, saveActiveTimer, saveSemester } from '../db/repo.js';
+import { saveSession, saveTimerSession, deleteSession, saveActiveTimer, saveSemester, setMeta } from '../db/repo.js';
 import { makeSession, withSemesterDefaults, RATING_LABELS } from '../model/factory.js';
 import { startTimer, TIMER } from '../model/timer.js';
 import { REVIEWS } from '../model/revision.js';
 import { formatMinutes, todayYMD } from '../model/time.js';
 import { navigate, rerender } from '../router.js';
+import { isSummitSession } from '../model/summit.js';
+import { celebrateSummit } from '../ui/celebrate.js';
 
 const LENGTHS = [
   { value: '25-5', label: '25 / 5', focus: 25, brk: 5 },
@@ -209,11 +211,21 @@ export function openLogSheet(entry, { afterClose } = {}) {
       if (fromTimer) await saveTimerSession(session);
       else await saveSession(session);
       await reload();
-      const message = isReview
-        ? 'Reviewed. The next look is planned.'
-        : session.finished
-          ? 'Nice work. Your plan is updated.'
-          : 'Saved. The rest is planned ahead.';
+      // Today's summit, climbed for the first time today: celebrate once.
+      const summit = state.summit;
+      const climbed = isSummitSession(summit, session, todayYMD());
+      if (climbed) {
+        await setMeta('summit', { ...summit, celebrated: true });
+        state.summit = { ...summit, celebrated: true };
+        celebrateSummit(topic?.name ?? 'Today’s summit');
+      }
+      const message = climbed
+        ? 'Summit saved.'
+        : isReview
+          ? 'Reviewed. The next look is planned.'
+          : session.finished
+            ? 'Nice work. Your plan is updated.'
+            : 'Saved. The rest is planned ahead.';
       toast(message, {
         actionLabel: 'Undo',
         onAction: async () => {

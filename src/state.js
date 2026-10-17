@@ -12,12 +12,14 @@ export const state = {
   sessions: [],
   timer: null, // the running focus timer, if any
   storySeen: null, // Monday of the last weekly story dismissed on Today
+  summit: null, // today's summit topic: { date, topicId, subjectId, kind, celebrated }
 };
 
 export async function reload() {
   state.semester = await getActiveSemester();
   state.timer = await getActiveTimer();
   state.storySeen = await getMeta('storySeen');
+  state.summit = await getMeta('summit');
   if (!state.semester) {
     Object.assign(state, { subjects: [], units: [], topics: [], deadlines: [], slots: [], sessions: [] });
     return state;

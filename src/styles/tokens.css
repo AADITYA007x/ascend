@@ -39,6 +39,11 @@
   --sky-top-night: #2b3150;
   --sky-bottom-night: #4d5478;
 
+  /* Streak and the daily summit */
+  --summit-soft: #fbe8d2;
+  --summit-ink: #8a5420;
+  --leaf: #5f8f4c;
+
   --diff-1: #e3efe5;
   --diff-1-ink: #3d6b46;
   --diff-2: #f6ecd8;
@@ -98,6 +103,10 @@
     --sky-bottom-examday: #74503c;
     --sky-top-night: #121629;
     --sky-bottom-night: #252b45;
+
+    --summit-soft: #3d2e1e;
+    --summit-ink: #f0bd86;
+    --leaf: #9cc48a;
 
     --diff-1: #263a2b;
     --diff-1-ink: #a9d3b1;

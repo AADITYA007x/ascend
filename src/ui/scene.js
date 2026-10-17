@@ -38,9 +38,10 @@ const round = (n) => Math.round(n * 10) / 10;
  * The climb: sky, sun, mountain, trail, camps, summit and you.
  * Returns a section with the scene, the countdown and a readout line (tap a camp to read it).
  */
-export function climbScene(climb, sky, today) {
+export function climbScene(climb, sky, today, { summitDone = false } = {}) {
   const id = `sky-${++uid}`;
-  const readout = h('p', { class: 'scene-readout small', 'aria-live': 'polite' }, climbReadout(climb, today));
+  const mainReadout = () => climbReadout(climb, today) + (summitDone ? ' · Today’s summit reached' : '');
+  const readout = h('p', { class: 'scene-readout small', 'aria-live': 'polite' }, mainReadout());
 
   const grad = s(
     'linearGradient',
@@ -120,6 +121,15 @@ export function climbScene(climb, sky, today) {
     s('rect', { x: round(me.x - 15), y: round(me.y + 8), width: 30, height: 15, rx: 7.5, class: 'scene-you-bg' }),
     s('text', { x: round(me.x), y: round(me.y + 19), 'text-anchor': 'middle', class: 'scene-label scene-you' }, 'you'),
     s('circle', { cx: round(me.x), cy: round(me.y), r: 6, class: 'scene-me' }),
+    // Today's summit is climbed: the climber carries a small pennant.
+    summitDone
+      ? s(
+          'g',
+          { class: 'scene-pennant' },
+          s('line', { x1: round(me.x + 4), y1: round(me.y - 3), x2: round(me.x + 4), y2: round(me.y - 19), class: 'scene-pole' }),
+          s('path', { d: `M${round(me.x + 4)},${round(me.y - 19)} l9,3.5 l-9,3.5 Z`, class: 'scene-flag summit-flag' }),
+        )
+      : null,
   );
 
   const svg = s(
@@ -146,7 +156,7 @@ export function climbScene(climb, sky, today) {
     svg.querySelectorAll('.scene-camp.active').forEach((x) => x.classList.remove('active'));
     if (!g || g === active) {
       active = null;
-      readout.textContent = climbReadout(climb, today);
+      readout.textContent = mainReadout();
       return;
     }
     active = g;

@@ -1,13 +1,14 @@
 // Semester screen: first-run welcome, overview with setup checklist, and the semester form.
 import { h, icon } from '../ui/dom.js';
 import { topbar } from '../ui/layout.js';
-import { field, textInput, dateInput, timeInput, stepper, showMessages } from '../ui/fields.js';
+import { field, textInput, dateInput, timeInput, stepper, chips, showMessages } from '../ui/fields.js';
 import { openSheet } from '../ui/sheet.js';
 import { toast } from '../ui/toast.js';
 import { state, reload } from '../state.js';
 import { saveSemester } from '../db/repo.js';
 import { makeSemester, withSemesterDefaults } from '../model/factory.js';
 import { validateSemester } from '../model/validate.js';
+import { STREAK } from '../model/streak.js';
 import { semesterTotals, setupProgress } from '../model/summary.js';
 import { formatMinutes, formatDate, daysBetween, todayYMD, addDays } from '../model/time.js';
 import { navigate, rerender } from '../router.js';
@@ -93,6 +94,7 @@ export function renderSemester() {
     ),
     h('p', { class: 'muted' }, `Daily study limit: ${formatMinutes(s.dailyLimitMin)}`),
     h('p', { class: 'muted' }, `Study between ${settings.studyFrom} and ${settings.studyTo} · ${bufferLabel(settings.bufferDays)} before exams`),
+    h('p', { class: 'muted' }, `A streak day needs ${formatMinutes(settings.streakMinMin)} of study`),
   );
 
   return {
@@ -188,6 +190,18 @@ export function openSemesterSheet(existing) {
       }),
       { hint: 'Days kept free before mid-sems and end-sems, for review. Used for new topics only if you fall behind.' },
     ),
+    h(
+      'div',
+      { class: 'field' },
+      h('span', { class: 'field-label' }, 'A streak day needs'),
+      chips(
+        'streakMinMin',
+        STREAK.minChoices.map((m) => ({ value: m, label: formatMinutes(m) })),
+        STREAK.minChoices.includes(s.streakMinMin) ? s.streakMinMin : STREAK.defaultMinMin,
+        { label: 'Study a streak day needs' },
+      ),
+      h('p', { class: 'field-hint' }, `Study at least this much in a day to keep your streak going. You get ${STREAK.tokensPerMonth} rest tokens a month for days off.`),
+    ),
   );
 
   openSheet({
@@ -205,6 +219,7 @@ export function openSemesterSheet(existing) {
         studyFrom: String(fd.get('studyFrom') ?? ''),
         studyTo: String(fd.get('studyTo') ?? ''),
         bufferDays: Number(fd.get('bufferDays')),
+        streakMinMin: Number(fd.get('streakMinMin')) || STREAK.defaultMinMin,
       };
       const v = validateSemester(next);
       showMessages(form, v);
