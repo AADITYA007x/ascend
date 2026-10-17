@@ -83,3 +83,52 @@ describe('card helper worker', () => {
     expect((await worker.fetch(req({ notes: 'n' }), env)).status).toBe(502);
   });
 });
+
+describe('timetable reading', () => {
+  const file = { mimeType: 'image/jpeg', data: 'aGVsbG8gd29ybGQ=' };
+  const reply = (rows) => geminiReply(JSON.stringify(rows));
+  const post = (body) => worker.fetch(req(body, { path: '/timetable' }), env);
+
+  it('refuses other file types, a missing file and files that are too big', async () => {
+    expect((await post({ file: { mimeType: 'image/gif', data: 'aGk=' } })).status).toBe(415);
+    expect((await post({ file: { mimeType: 'image/jpeg', data: '' } })).status).toBe(400);
+    expect((await post({})).status).toBe(415);
+    expect((await post({ file: { mimeType: 'application/pdf', data: 'A'.repeat(6 * 1024 * 1024) } })).status).toBe(413);
+  });
+
+  it('sends the file as inline data with the batch and subject names, and returns tidy rows', async () => {
+    const spy = stubGemini(
+      reply([
+        { day: 'Mon', start: '9:00', end: '10:00', subject: ' Physics ', kind: 'Lecture', room: 'LH-2' },
+        { day: '', start: '9', end: '10', subject: 'No day' },
+        { day: 'Tue', start: '2 pm', end: '4 pm', subject: 'DSA Lab' },
+      ]),
+    );
+    const res = await post({ file, batch: 'B2', subjects: ['Physics (PH101)', 'Data Structures'] });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      rows: [
+        { day: 'Mon', start: '9:00', end: '10:00', subject: 'Physics', kind: 'Lecture', room: 'LH-2' },
+        { day: 'Tue', start: '2 pm', end: '4 pm', subject: 'DSA Lab', kind: '', room: '' },
+      ],
+    });
+    const [url, init] = spy.mock.calls[0];
+    expect(url).not.toContain('test-key');
+    const sent = JSON.parse(init.body);
+    expect(sent.contents[0].parts[0]).toEqual({ inline_data: { mime_type: 'image/jpeg', data: file.data } });
+    const text = sent.contents[0].parts[1].text;
+    expect(text).toContain('"B2"');
+    expect(text).toContain('Physics (PH101); Data Structures');
+    expect(sent.generationConfig.responseSchema.items.properties).toHaveProperty('room');
+  });
+
+  it('keeps all batches when none is given, and passes on the free-limit message', async () => {
+    const spy = stubGemini(reply([]));
+    await post({ file: { mimeType: 'application/pdf', data: 'JVBERi0=' } });
+    expect(JSON.parse(spy.mock.calls[0][1].body).contents[0].parts[1].text).toContain('Keep classes for all batches');
+    stubGemini(new Response('{}', { status: 429 }));
+    const res = await post({ file });
+    expect(res.status).toBe(429);
+    expect((await res.json()).error).toMatch(/free limit/);
+  });
+});

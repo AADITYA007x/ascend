@@ -1,5 +1,5 @@
 // Flashcards for one topic: add, edit and delete them, practise them, or draft some from your notes.
-// The draft helper is optional: it only shows when the app was built with VITE_CARDS_URL.
+// The draft helper is optional: it only shows when the app was built with VITE_CARDS_URL (the AI helper).
 import { h, icon } from '../ui/dom.js';
 import { topbar } from '../ui/layout.js';
 import { field, showMessages, fab, emptyState } from '../ui/fields.js';
@@ -13,9 +13,7 @@ import { cardStates, cleanDrafts, CARDS } from '../model/cards.js';
 import { relativeDays, todayYMD } from '../model/time.js';
 import { rerender } from '../router.js';
 import { startQuiz } from './quiz.js';
-
-const CARDS_URL = String(import.meta.env.VITE_CARDS_URL ?? '').trim().replace(/\/+$/, '');
-const HELPER_TIMEOUT_MS = 30000;
+import { helperEnabled, postHelper } from '../net/helper.js';
 
 // The helper button follows the connection.
 const onConnection = () => location.hash.startsWith('#/cards/') && rerender();
@@ -37,7 +35,7 @@ export function renderCards(topicId) {
   const today = todayYMD();
   const back = `#/subject/${encodeURIComponent(topic.subjectId)}`;
 
-  const helper = CARDS_URL
+  const helper = helperEnabled()
     ? h(
         'button',
         { type: 'button', class: 'btn btn-quiet', disabled: !navigator.onLine, onclick: () => openNotesSheet(topic) },
@@ -215,25 +213,7 @@ function openNotesSheet(topic, notes = '') {
 }
 
 async function requestDrafts(topic, notes) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), HELPER_TIMEOUT_MS);
-  try {
-    const res = await fetch(`${CARDS_URL}/cards`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topic, notes }),
-      signal: ctrl.signal,
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'The helper couldn’t make cards right now. Try again in a bit.');
-    return data.cards ?? [];
-  } catch (err) {
-    if (err.name === 'AbortError') throw new Error('The helper took too long. Try again, or with shorter notes.');
-    if (err instanceof TypeError) throw new Error('Couldn’t reach the card helper. Check your connection and try again.');
-    throw err;
-  } finally {
-    clearTimeout(timer);
-  }
+  return (await postHelper('/cards', { topic, notes })).cards ?? [];
 }
 
 /** Step 2 of the helper: check and edit the drafts, then save the ones you keep. */

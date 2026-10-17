@@ -51,6 +51,8 @@ const ICONS = {
   play: '<path d="M8 5.5v13l10.5-6.5z"/>',
   pause: '<path d="M9 5.5v13M15 5.5v13"/>',
   leaf: '<path d="M5 19c0-8 5-13.5 14-14-.5 9-6 14-14 14z"/><path d="M5 19l7.5-7.5"/>',
+  camera: '<path d="M4 8h3.5l2-2.5h5l2 2.5H20v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  file: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/>',
 };
 

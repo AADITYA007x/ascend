@@ -219,6 +219,37 @@ export function deleteSlot(id) {
 }
 
 export const deleteAttendance = (id) => deleteOne('attendance', id);
+
+/**
+ * Saves an imported timetable in one go: new subjects, new classes, and (when replacing) removes
+ * old classes with their attendance marks. Returns what undoImport needs.
+ */
+export function saveImport({ subjects = [], slots = [], removeSlotIds = [] }) {
+  return tx(['subjects', 'classSlots', 'attendance'], 'readwrite', async (t) => {
+    const slotStore = t.objectStore('classSlots');
+    const marks = t.objectStore('attendance');
+    const [removedSlots, removedMarks] = await Promise.all([
+      Promise.all(removeSlotIds.map((id) => reqToPromise(slotStore.get(id)))).then((list) => list.filter(Boolean)),
+      Promise.all(removeSlotIds.map((id) => reqToPromise(marks.index('slotId').getAll(id)))).then((list) => list.flat()),
+    ]);
+    for (const s of removedSlots) slotStore.delete(s.id);
+    for (const r of removedMarks) marks.delete(r.id);
+    for (const s of subjects) t.objectStore('subjects').put(s);
+    for (const s of slots) slotStore.put(s);
+    return {
+      added: { subjects: subjects.map((s) => s.id), classSlots: slots.map((s) => s.id) },
+      removed: { classSlots: removedSlots, attendance: removedMarks },
+    };
+  });
+}
+
+/** Takes an import back: removes what it added and puts back what it replaced. */
+export function undoImport({ added, removed }) {
+  return tx(['subjects', 'classSlots', 'attendance'], 'readwrite', (t) => {
+    for (const [store, ids] of Object.entries(added)) for (const id of ids) t.objectStore(store).delete(id);
+    for (const [store, records] of Object.entries(removed)) for (const r of records) t.objectStore(store).put(r);
+  });
+}
 export const deleteCard = (id) => deleteOne('cards', id);
 
 /** Puts back records from a delete snapshot. */

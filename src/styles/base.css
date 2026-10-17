@@ -2694,3 +2694,140 @@ select.input {
     transition: none;
   }
 }
+
+/* ---------- Timetable import ---------- */
+.import {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.import-link {
+  align-self: flex-start;
+  margin: -4px -12px 0;
+}
+
+.import-choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.import-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 112px;
+  padding: 14px 10px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+}
+
+.import-choice .icon {
+  color: var(--accent);
+}
+
+.import-choice:active:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.import-choice:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.import-reading {
+  align-items: center;
+  text-align: center;
+  padding-top: 12px;
+}
+
+.import-thumb {
+  display: block;
+  max-width: 100%;
+  max-height: 46dvh;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  object-fit: contain;
+}
+
+.import-reading .import-thumb {
+  animation: import-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes import-pulse {
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.import-summary {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.small-thumb {
+  flex: none;
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+}
+
+.import-again {
+  align-self: flex-start;
+  margin: 2px -12px -8px;
+}
+
+.name-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.name-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.name-head .card-heading {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.name-head .muted {
+  flex: none;
+}
+
+.name-create {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.name-card.skipped .card-heading,
+.slot-card.skipped .card-heading {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.import-save {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .import-reading .import-thumb {
+    animation: none;
+  }
+}

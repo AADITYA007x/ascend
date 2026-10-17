@@ -18,6 +18,7 @@ export const state = {
   installDismissed: false, // "Not now" on Today's install card
   room: null, // the focus room you're in: { code, status, members, selfId, clockOffset }
   roomMe: null, // { id, name } you use in focus rooms
+  importBatch: '', // your section/batch, remembered for timetable import
 };
 
 // Things to run after every reload (e.g. telling your focus room the timer changed).
@@ -31,6 +32,7 @@ export async function reload() {
   state.summit = await getMeta('summit');
   state.installDismissed = Boolean(await getMeta('installDismissed'));
   state.roomMe = await getMeta('roomMe');
+  state.importBatch = (await getMeta('importBatch')) ?? '';
   if (!state.semester) {
     Object.assign(state, { subjects: [], units: [], topics: [], deadlines: [], slots: [], sessions: [], cards: [], attendance: [] });
     return state;

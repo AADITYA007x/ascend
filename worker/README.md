@@ -1,8 +1,11 @@
-# Ascend card helper (optional)
+# Ascend AI helper (optional)
 
-A tiny Cloudflare Worker behind "Make cards from my notes". It sends your pasted notes to Gemini
-and returns draft flashcards that you check and edit before saving. The Gemini key lives only
-in a Worker secret and is never in the app. Ascend works fully without this.
+A tiny Cloudflare Worker that asks Gemini for help with two things:
+- **Make cards from my notes**: pasted notes become draft flashcards.
+- **Import timetable**: a photo or PDF of your class timetable becomes a list of classes.
+
+You check and edit everything before it is saved. The Gemini key lives only in a Worker secret and
+is never in the app. Ascend works fully without this.
 
 Everything here is on free tiers: Cloudflare Workers Free and the Gemini API free tier.
 
@@ -39,4 +42,9 @@ Flashcards screen. Without `VITE_CARDS_URL` the button is hidden, and everything
 offline as before.
 
 ## Updating
-Paste the new `worker/worker.js` into the dashboard editor and deploy.
+Paste the new `worker/worker.js` into the dashboard editor and deploy. No settings change.
+
+## Privacy note
+Notes and timetable images are sent to Google's Gemini API only to read them, and nothing is kept
+by the Worker. On Gemini's free tier, Google may use what you send to improve its models, so don't
+send anything private.

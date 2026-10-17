@@ -12,10 +12,12 @@ import { slotsForDay, overlappingIds, classMinutesOnDay, freeMinutesPerDay } fro
 import { WEEKDAYS, WEEKDAYS_SHORT, formatMinutes, toMinutes, fromMinutes, todayYMD, weekdayMon0 } from '../model/time.js';
 import { rerender } from '../router.js';
 import { attendanceSummaryCard } from './attendance.js';
+import { renderTimetableImport } from './timetable-import.js';
 
 let selectedDay = weekdayMon0(todayYMD());
 
-export function renderTimetable() {
+export function renderTimetable(sub) {
+  if (sub === 'import') return renderTimetableImport();
   // The free-time preview uses your study hours from the semester settings.
   const { studyFrom: DAY_START, studyTo: DAY_END } = withSemesterDefaults(state.semester);
   const overlaps = overlappingIds(state.slots);
@@ -55,6 +57,7 @@ export function renderTimetable() {
       : `No classes. About ${formatMinutes(free)} free between ${DAY_START} and ${DAY_END}`,
   );
 
+  const total = state.slots.length;
   const listEl = daySlots.length
     ? h(
         'ul',
@@ -89,14 +92,19 @@ export function renderTimetable() {
     : emptyState(
         `Nothing on ${WEEKDAYS[selectedDay]}`,
         'Add your classes, labs and tutorials so Ascend only plans study in your free time.',
+        total ? null : importLink('btn btn-primary'),
       );
 
-  const total = state.slots.length;
   return {
     title: 'Timetable',
     top: topbar('Timetable', { subtitle: total ? `${total} class${total === 1 ? '' : 'es'} a week` : 'Your weekly classes' }),
-    body: [attendanceSummaryCard(), tabs, summary, listEl, fab('Add class', () => openSlotSheet(null))].filter(Boolean),
+    body: [attendanceSummaryCard(), total ? importLink('btn btn-quiet import-link') : null, tabs, summary, listEl, fab('Add class', () => openSlotSheet(null))].filter(Boolean),
   };
+}
+
+/** "Import from a photo or PDF": the quick way to fill in a whole week. */
+function importLink(cls) {
+  return h('a', { href: '#/timetable/import', class: cls }, icon('camera', 18), 'Import from a photo or PDF');
 }
 
 function openSlotSheet(existing) {
