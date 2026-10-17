@@ -128,6 +128,14 @@ export function validateStartCounts({ startAttended, startHeld }) {
   return result(errors);
 }
 
+/** A display name for focus rooms (already cleaned with cleanName). */
+export function validateRoomName(name) {
+  const errors = {};
+  if (typeof name !== 'string' || name.length < 2) errors.name = 'Pick a name with at least 2 letters.';
+  else if (name.length > 24) errors.name = 'Keep it under 24 characters.';
+  return result(errors);
+}
+
 export const CARD_LIMITS = { frontMax: 300, backMax: 600 };
 
 export function validateCard(c) {

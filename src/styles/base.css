@@ -2501,3 +2501,196 @@ select.input {
     padding: 2px 12px;
   }
 }
+
+/* ---------- Focus rooms (Milestone 10) ---------- */
+.room-join {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.room-or {
+  text-align: center;
+  margin-top: 6px;
+}
+
+.room-join-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.room-code-input {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+}
+
+.room-invite {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 0 4px;
+}
+
+.room {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.room-code-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.room-code {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  font-variant-numeric: tabular-nums;
+  -webkit-user-select: all;
+  user-select: all;
+}
+
+.room-conn {
+  color: var(--warn);
+}
+
+.room-switch {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.member-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.member-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: var(--member);
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+/* Focusing: a soft ring in the friend's colour. */
+.status-focus .member-avatar {
+  box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--member);
+}
+
+.status-idle .member-avatar,
+.status-paused .member-avatar {
+  opacity: 0.7;
+}
+
+.member-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.member-name {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-status {
+  font-variant-numeric: tabular-nums;
+}
+
+.status-focus .member-status {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.member-main > .muted {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cheer-btn {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  background: var(--bg);
+  font-size: 1.35rem;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.cheer-btn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.cheer-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.cheer-btn.cheered {
+  animation: cheer-pop 0.4s ease;
+}
+
+@keyframes cheer-pop {
+  50% {
+    transform: scale(1.18);
+  }
+}
+
+.room-leave {
+  align-self: center;
+}
+
+.room-card-icon {
+  font-size: 1.4rem;
+}
+
+.focus-room-line {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cheer-btn,
+  .cheer-btn.cheered {
+    animation: none;
+    transition: none;
+  }
+}

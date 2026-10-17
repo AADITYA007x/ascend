@@ -16,7 +16,13 @@ export const state = {
   storySeen: null, // Monday of the last weekly story dismissed on Today
   summit: null, // today's summit topic: { date, topicId, subjectId, kind, celebrated }
   installDismissed: false, // "Not now" on Today's install card
+  room: null, // the focus room you're in: { code, status, members, selfId, clockOffset }
+  roomMe: null, // { id, name } you use in focus rooms
 };
+
+// Things to run after every reload (e.g. telling your focus room the timer changed).
+const reloadListeners = new Set();
+export const afterReload = (fn) => reloadListeners.add(fn);
 
 export async function reload() {
   state.semester = await getActiveSemester();
@@ -24,12 +30,14 @@ export async function reload() {
   state.storySeen = await getMeta('storySeen');
   state.summit = await getMeta('summit');
   state.installDismissed = Boolean(await getMeta('installDismissed'));
+  state.roomMe = await getMeta('roomMe');
   if (!state.semester) {
     Object.assign(state, { subjects: [], units: [], topics: [], deadlines: [], slots: [], sessions: [], cards: [], attendance: [] });
     return state;
   }
   Object.assign(state, await loadSemesterData(state.semester.id));
   state.subjects.sort((a, b) => a.name.localeCompare(b.name));
+  for (const fn of reloadListeners) fn(state);
   return state;
 }
 

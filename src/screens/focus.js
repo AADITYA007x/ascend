@@ -12,6 +12,8 @@ import { formatMinutes } from '../model/time.js';
 import { navigate } from '../router.js';
 import { openLogSheet } from './session-sheets.js';
 import { afterReview } from './quiz.js';
+import { publishPresence } from '../net/room-client.js';
+import { focusingCount, focusingLine } from '../model/room.js';
 
 const RING_R = 88;
 const RING_C = 2 * Math.PI * RING_R;
@@ -90,6 +92,7 @@ export function renderFocus() {
     ring,
     status,
     sofar,
+    roomLine(),
     actions,
   );
 
@@ -140,6 +143,14 @@ export function renderFocus() {
   return { title: 'Focus', top, hideNav: true, body: root };
 }
 
+/** "2 friends focusing with you", while you're in a focus room and someone is. */
+function roomLine() {
+  const room = state.room;
+  if (room?.status !== 'live') return null;
+  const n = focusingCount(room.members, room.selfId);
+  return n ? h('a', { href: '#/room', class: 'focus-room-line small' }, focusingLine(n)) : null;
+}
+
 function statusText(v, timer) {
   if (v.phase === 'focus') {
     if (v.status === 'ended') return timer.breakMin ? 'Time for a break. Well done.' : 'Time’s up. Nicely done.';
@@ -182,6 +193,7 @@ async function update(step) {
   state.timer = next;
   live?.tick();
   await saveActiveTimer(next);
+  publishPresence();
 }
 
 async function finishSession() {

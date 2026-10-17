@@ -25,6 +25,8 @@ import { streakModel, streakLine, streakNudge, restTokenNote } from '../model/st
 import { resolveSummit, summitReached, isSummitItem } from '../model/summit.js';
 import { classesTodayCard } from './attendance.js';
 import { installCard } from '../ui/install.js';
+import { roomsEnabled } from '../net/room-client.js';
+import { focusingCount } from '../model/room.js';
 
 // Today offers installing once, after a few study sessions, until you say "Not now".
 const INSTALL_AFTER_SESSIONS = 3;
@@ -58,6 +60,8 @@ export function renderToday() {
   if (streak.days.length) body.push(streakRow(streak));
   const running = timerCard();
   if (running) body.push(running);
+  const room = roomCard();
+  if (room) body.push(room);
   const story = weekStoryCard(today, semester);
   if (story) body.push(story);
   if (!state.installDismissed && state.sessions.length >= INSTALL_AFTER_SESSIONS) {
@@ -104,6 +108,9 @@ export function renderToday() {
 
   if (day && !isOff && day.items.length) {
     body.push(h('button', { type: 'button', class: 'btn btn-quiet', onclick: () => takeDayOff(today, streak) }, 'Take today off'));
+  }
+  if (roomsEnabled() && !state.room) {
+    body.push(h('a', { href: '#/room', class: 'btn btn-quiet' }, 'Study with friends'));
   }
 
   return {
@@ -444,4 +451,27 @@ async function dismissInstall() {
   state.installDismissed = true;
   rerender();
   toast('No problem. You can install Ascend any time from Progress.');
+}
+
+/** While you're in a focus room: who's there, one tap from the room. */
+function roomCard() {
+  const room = state.room;
+  if (!room || room.status === 'full') return null;
+  const others = room.members.filter((m) => m.id !== room.selfId).length;
+  const focusing = focusingCount(room.members, room.selfId);
+  const line =
+    room.status !== 'live'
+      ? 'Reconnecting…'
+      : others === 0
+        ? 'Just you so far'
+        : focusing
+          ? `${focusing} focusing now`
+          : `${others} friend${others === 1 ? '' : 's'} here`;
+  return h(
+    'a',
+    { href: '#/room', class: 'card card-link room-card' },
+    h('span', { class: 'room-card-icon', 'aria-hidden': 'true' }, '👥'),
+    h('span', { class: 'card-main' }, h('span', { class: 'card-heading' }, `Room ${room.code.slice(0, 3)} ${room.code.slice(3)}`), h('span', { class: 'muted small' }, line)),
+    icon('chevron', 18),
+  );
 }

@@ -1,0 +1,19 @@
+# Ascend focus rooms. Deploy from this folder with:  npx wrangler deploy
+# See README.md for the one-time setup.
+
+name = "ascend-rooms"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+
+[vars]
+# Where your app runs, comma separated (no trailing slash). Edit before deploying.
+ALLOWED_ORIGINS = "http://localhost:5173,http://localhost:4173"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+# The free plan needs SQLite-backed Durable Objects. Rooms keep nothing on disk either way.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
