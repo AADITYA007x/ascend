@@ -53,7 +53,7 @@ describe('card helper worker', () => {
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe(APP);
     expect(await res.json()).toEqual({ cards: [{ front: 'Q1', back: 'A1' }] });
     const [url, init] = spy.mock.calls[0];
-    expect(url).toContain('gemini-2.5-flash:generateContent');
+    expect(url).toContain('gemini-3.8-flash:generateContent');
     expect(url).not.toContain('test-key');
     expect(init.headers['x-goog-api-key']).toBe('test-key');
     expect(JSON.parse(init.body).contents[0].parts[0].text).toContain('Some notes');
@@ -96,7 +96,7 @@ describe('timetable reading', () => {
     expect((await post({ file: { mimeType: 'application/pdf', data: 'A'.repeat(6 * 1024 * 1024) } })).status).toBe(413);
   });
 
-  it('sends the file as inline data with the batch and subject names, and returns tidy rows', async () => {
+  it('sends the file as inlineData with the batch and subject names, and returns tidy rows', async () => {
     const spy = stubGemini(
       reply([
         { day: 'Mon', start: '9:00', end: '10:00', subject: ' Physics ', kind: 'Lecture', room: 'LH-2' },
@@ -115,7 +115,7 @@ describe('timetable reading', () => {
     const [url, init] = spy.mock.calls[0];
     expect(url).not.toContain('test-key');
     const sent = JSON.parse(init.body);
-    expect(sent.contents[0].parts[0]).toEqual({ inline_data: { mime_type: 'image/jpeg', data: file.data } });
+    expect(sent.contents[0].parts[0]).toEqual({ inlineData: { mimeType: 'image/jpeg', data: file.data } });
     const text = sent.contents[0].parts[1].text;
     expect(text).toContain('"B2"');
     expect(text).toContain('Physics (PH101); Data Structures');
@@ -130,5 +130,35 @@ describe('timetable reading', () => {
     const res = await post({ file });
     expect(res.status).toBe(429);
     expect((await res.json()).error).toMatch(/free limit/);
+  });
+});
+
+describe('timetable retry without the schema', () => {
+  it('tries once more without responseSchema when Gemini says 400, and uses that answer', async () => {
+    const calls = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url, init) => {
+        calls.push(JSON.parse(init.body));
+        return calls.length === 1
+          ? new Response('{"error":{"code":400}}', { status: 400 })
+          : geminiReply(JSON.stringify([{ day: 'Mon', start: '9', end: '10', subject: 'OS' }]));
+      }),
+    );
+    const res = await worker.fetch(req({ file: { mimeType: 'image/png', data: 'aGVsbG8=' } }, { path: '/timetable' }), env);
+    expect(res.status).toBe(200);
+    expect((await res.json()).rows).toHaveLength(1);
+    expect(calls[0].generationConfig).toHaveProperty('responseSchema');
+    expect(calls[1].generationConfig).not.toHaveProperty('responseSchema');
+    expect(calls[1].contents[0].parts[1].text).toContain('JSON array');
+  });
+  it('does not retry flashcards, and gives the calm error when both tries fail', async () => {
+    const spy = stubGemini(new Response('{}', { status: 400 }));
+    expect((await worker.fetch(req({ notes: 'n' }), env)).status).toBe(502);
+    expect(spy).toHaveBeenCalledTimes(1);
+    const both = vi.fn(async () => new Response('{}', { status: 400 }));
+    vi.stubGlobal('fetch', both);
+    expect((await worker.fetch(req({ file: { mimeType: 'image/png', data: 'aGVsbG8=' } }, { path: '/timetable' }), env)).status).toBe(502);
+    expect(both).toHaveBeenCalledTimes(2);
   });
 });

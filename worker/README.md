@@ -13,7 +13,7 @@ Everything here is on free tiers: Cloudflare Workers Free and the Gemini API fre
 1. Go to Google AI Studio (aistudio.google.com) and choose **Get API key**.
 2. Create a key. Keep it private: don't commit it or paste it into the app.
 3. Note the name of a model on the free tier (shown in AI Studio). The Worker uses
-   `gemini-2.5-flash` unless you set `GEMINI_MODEL`. Model names change over time, so check this.
+   `gemini-3.8-flash` unless you set `GEMINI_MODEL`. Model names change over time, so check this.
 
 ## 2. Create the Worker (dashboard, no install)
 1. Go to dash.cloudflare.com, then **Workers & Pages**, then **Create**, then **Create Worker**.

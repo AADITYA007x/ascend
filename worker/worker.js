@@ -6,7 +6,7 @@
 // Settings (Worker → Settings → Variables and secrets):
 //   GEMINI_API_KEY   secret, from Google AI Studio. Never put it in the app.
 //   ALLOWED_ORIGINS  comma list of where your app runs, e.g. https://ascend.pages.dev,http://localhost:5173
-//   GEMINI_MODEL     optional, defaults to gemini-2.5-flash
+//   GEMINI_MODEL     optional, defaults to gemini-3.8-flash (check AI Studio for current free models)
 
 const NOTES_MAX = 12000;
 const TOPIC_MAX = 120;
@@ -16,7 +16,7 @@ const FILE_MAX = 5.5 * 1024 * 1024; // base64 characters (about 4 MB of file)
 const BATCH_MAX = 20;
 const SUBJECTS_MAX = 30;
 const ROWS_MAX = 80;
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+const DEFAULT_MODEL = 'gemini-3.8-flash';
 
 const BUSY = 'The helper couldn’t do that right now. Try again in a bit.';
 
@@ -89,22 +89,42 @@ function timetablePrompt(batch, subjects) {
       : 'Keep classes for all batches and sections.',
     subjects.length ? `The student’s subjects, for spelling only (still write names as they appear): ${subjects.join('; ')}.` : '',
     'Do not invent classes that are not on the timetable.',
+    'Answer with only a JSON array of objects with the string fields "day", "start", "end", "subject", "kind" and "room".',
   ]
     .filter(Boolean)
     .join('\n');
 }
 
-/** Asks Gemini for a JSON list. Returns { status, list } or { status, error }. */
-async function askGemini(parts, schema, env) {
+/**
+ * Asks Gemini for a JSON list. Returns { status, list } or { status, error }.
+ * With retryPlain, a 400 is tried once more without the strict schema (the prompt describes the shape),
+ * since some models refuse a schema together with an image.
+ */
+async function askGemini(parts, schema, env, { retryPlain = false } = {}) {
   const model = env.GEMINI_MODEL || DEFAULT_MODEL;
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
-    body: JSON.stringify({
-      contents: [{ role: 'user', parts }],
-      generationConfig: { responseMimeType: 'application/json', responseSchema: schema, temperature: 0.2 },
-    }),
-  });
+  const call = (withSchema) =>
+    fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
+      body: JSON.stringify({
+        contents: [{ role: 'user', parts }],
+        generationConfig: withSchema
+          ? { responseMimeType: 'application/json', responseSchema: schema, temperature: 0.2 }
+          : { responseMimeType: 'application/json', temperature: 0.2 },
+      }),
+    });
+  // For you in the Worker's logs (never sent to the browser): what Gemini said, without the key.
+  const logFailure = async (r, label) => {
+    const detail = await r.text().catch(() => '');
+    console.error(`Gemini ${model} (${label}) answered ${r.status}: ${detail.slice(0, 500)}`);
+  };
+  let res = await call(true);
+  if (!res.ok) await logFailure(res, 'with schema');
+  if (res.status === 400 && retryPlain) {
+    res = await call(false);
+    if (!res.ok) await logFailure(res, 'without schema');
+    else console.log(`Gemini ${model} (without schema) answered ${res.status}`);
+  }
   if (res.status === 429) return { status: 429, error: 'The helper has reached its free limit for now. Try again later.' };
   if (!res.ok) return { status: 502, error: BUSY };
   try {
@@ -146,7 +166,7 @@ async function timetable(body, env) {
     .map((s) => str(s, 60))
     .filter(Boolean)
     .slice(0, SUBJECTS_MAX);
-  const r = await askGemini([{ inline_data: { mime_type: mimeType, data } }, { text: timetablePrompt(batch, subjects) }], TIMETABLE_SCHEMA, env);
+  const r = await askGemini([{ inlineData: { mimeType, data } }, { text: timetablePrompt(batch, subjects) }], TIMETABLE_SCHEMA, env, { retryPlain: true });
   if (r.error) return { status: r.status, body: { error: r.error } };
   const rows = r.list
     .map((x) => ({
@@ -187,7 +207,8 @@ export default {
     try {
       const out = await route(body, env);
       return json(out.body, out.status, origin);
-    } catch {
+    } catch (err) {
+      console.error(`Helper error: ${err?.message ?? err}`);
       return json({ error: BUSY }, 502, origin);
     }
   },
