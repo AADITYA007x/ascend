@@ -2,6 +2,7 @@
 // Deletes return a "snapshot" ({ storeName: [records] }) that restore() can put back (for Undo).
 
 import { tx, get, put, putMany, del, reqToPromise } from './idb.js';
+import { BACKUP_STORES } from '../model/backup.js';
 
 const ACTIVE_KEY = 'activeSemesterId';
 const TIMER_KEY = 'activeTimer';
@@ -271,6 +272,27 @@ export function restore(snapshot) {
     for (const s of stores) {
       const os = t.objectStore(s);
       for (const r of snapshot[s]) os.put(r);
+    }
+  });
+}
+
+// ---------- Backup ----------
+
+/** Every record in every store, read in one transaction: { storeName: [records] }. */
+export function exportAll() {
+  return tx(BACKUP_STORES, 'readonly', async (t) => {
+    const lists = await Promise.all(BACKUP_STORES.map((s) => reqToPromise(t.objectStore(s).getAll())));
+    return Object.fromEntries(BACKUP_STORES.map((s, i) => [s, lists[i]]));
+  });
+}
+
+/** Replaces everything with a checked backup. One transaction: if anything fails, nothing changes. */
+export function replaceAll(stores) {
+  return tx(BACKUP_STORES, 'readwrite', (t) => {
+    for (const s of BACKUP_STORES) {
+      const os = t.objectStore(s);
+      os.clear();
+      for (const r of stores[s] ?? []) os.put(r);
     }
   });
 }

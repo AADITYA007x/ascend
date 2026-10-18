@@ -20,6 +20,7 @@ export const state = {
   roomMe: null, // { id, name } you use in focus rooms
   importBatch: '', // your section/batch, remembered for timetable import
   syllabusHint: '', // your course and semester, remembered for syllabus import
+  lastBackupAt: null, // ISO time of the last backup file saved from this device
 };
 
 // Things to run after every reload (e.g. telling your focus room the timer changed).
@@ -35,6 +36,7 @@ export async function reload() {
   state.roomMe = await getMeta('roomMe');
   state.importBatch = (await getMeta('importBatch')) ?? '';
   state.syllabusHint = (await getMeta('syllabusHint')) ?? '';
+  state.lastBackupAt = await getMeta('lastBackupAt');
   if (!state.semester) {
     Object.assign(state, { subjects: [], units: [], topics: [], deadlines: [], slots: [], sessions: [], cards: [], attendance: [] });
     return state;

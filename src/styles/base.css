@@ -2718,6 +2718,17 @@ select.input {
   margin-top: 6px;
 }
 
+.backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.backup-actions .btn {
+  flex: 1 1 160px;
+}
+
 .import-choices {
   display: grid;
   grid-template-columns: 1fr 1fr;

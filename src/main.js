@@ -73,12 +73,34 @@ async function boot() {
   }
 
   startRouter(routes, { defaultRoute });
+  watchForUpdates();
   if (roomsEnabled()) await setupRooms();
 
   // Ask the browser to keep our data even when space runs low.
   if (navigator.storage?.persist) {
     navigator.storage.persisted().then((already) => already || navigator.storage.persist()).catch(() => {});
   }
+}
+
+/**
+ * A new version takes over in the background (the service worker updates itself), but this page
+ * keeps running the old code until it reloads: offer the reload. Focus timers survive it.
+ */
+function watchForUpdates() {
+  const sw = navigator.serviceWorker;
+  if (!sw) return;
+  const hadController = Boolean(sw.controller); // no controller yet = first visit, not an update
+  sw.addEventListener('controllerchange', () => {
+    if (!hadController) return;
+    toast('Ascend was updated', { actionLabel: 'Reload', duration: 10000, onAction: () => location.reload() });
+  });
+  // An installed app can stay open for days: look for a new version when it comes back, hourly at most.
+  let lastCheck = Date.now();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || Date.now() - lastCheck < 60 * 60 * 1000) return;
+    lastCheck = Date.now();
+    sw.getRegistration().then((reg) => reg?.update()).catch(() => {});
+  });
 }
 
 /** Focus rooms: keep the room told about your timer, redraw when friends change, and rejoin after a reload. */

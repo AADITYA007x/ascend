@@ -13,6 +13,7 @@ import { semesterTotals, setupProgress } from '../model/summary.js';
 import { formatMinutes, formatDate, daysBetween, todayYMD, addDays } from '../model/time.js';
 import { navigate, rerender } from '../router.js';
 import { installCard } from '../ui/install.js';
+import { backupCard, restoreBackup } from '../ui/backup.js';
 
 const STEP_ROUTES = {
   semester: 'semester',
@@ -102,7 +103,7 @@ export function renderSemester() {
   return {
     title: 'Semester',
     top: topbar(s.name, { back: '#/progress', action: editBtn, subtitle: 'Your semester' }),
-    body: [checklist, dates, stats, installCard()].filter(Boolean),
+    body: [checklist, dates, stats, backupCard(), installCard()].filter(Boolean),
   };
 }
 
@@ -143,6 +144,7 @@ function renderWelcome() {
         { type: 'button', class: 'btn btn-primary btn-wide', onclick: () => openSemesterSheet(null) },
         'Let’s set up your semester',
       ),
+      h('button', { type: 'button', class: 'btn btn-quiet', onclick: restoreBackup }, 'Restore from a backup'),
     ),
   };
 }
