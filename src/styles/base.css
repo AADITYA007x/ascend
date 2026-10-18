@@ -2707,6 +2707,17 @@ select.input {
   margin: -4px -12px 0;
 }
 
+.import-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.import-card .btn {
+  align-self: stretch;
+  margin-top: 6px;
+}
+
 .import-choices {
   display: grid;
   grid-template-columns: 1fr 1fr;

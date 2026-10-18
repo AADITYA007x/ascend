@@ -61,8 +61,22 @@ export function renderSubjects(sub, focusId) {
   return {
     title: 'Subjects',
     top: topbar('Subjects', { subtitle }),
-    body: [state.subjects.length ? importLink('btn btn-quiet import-link') : null, list, fab('Add subject', () => openSubjectSheet(null))].filter(Boolean),
+    body: [state.subjects.length ? importPrompt() : null, list, fab('Add subject', () => openSubjectSheet(null))].filter(Boolean),
   };
+}
+
+/** A clear button while some subjects have no units yet; a quiet link once they all do. */
+function importPrompt() {
+  const empty = state.subjects.filter((s) => !state.units.some((u) => u.subjectId === s.id)).length;
+  if (!empty) return importLink('btn btn-quiet import-link');
+  const all = empty === state.subjects.length;
+  return h(
+    'div',
+    { class: 'card import-card' },
+    h('p', { class: 'card-heading' }, all ? 'Fill in your units and topics' : `${empty} subject${empty === 1 ? '' : 's'} still need units`),
+    h('p', { class: 'muted small' }, 'Upload your syllabus and Ascend reads the units and topics for you. You check everything before it’s saved.'),
+    importLink('btn btn-primary'),
+  );
 }
 
 /** "Import from syllabus": subjects, units and topics in one go. */
