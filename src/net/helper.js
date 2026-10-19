@@ -7,7 +7,8 @@ export const helperEnabled = () => Boolean(BASE);
 
 /**
  * An error with a calm message that is safe to show as is.
- * kind: 'cancel' when you cancelled, 'limit' when Gemini's free limit was reached (worth waiting and retrying).
+ * kind: 'cancel' when you cancelled, 'limit' when Gemini's free limit was reached or it's overloaded
+ * (worth waiting and retrying).
  */
 export class HelperError extends Error {
   constructor(message, kind = 'error') {
@@ -37,7 +38,8 @@ export async function postHelper(path, body, { timeoutMs = 30000, signal } = {})
       signal: ctrl.signal,
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new HelperError(data.error || 'The helper couldn’t do that right now. Try again in a bit.', res.status === 429 ? 'limit' : 'error');
+    // 429: the free limit; 503: Gemini is overloaded. Both pass in a minute or so.
+    if (!res.ok) throw new HelperError(data.error || 'The helper couldn’t do that right now. Try again in a bit.', res.status === 429 || res.status === 503 ? 'limit' : 'error');
     return data;
   } catch (err) {
     if (err instanceof HelperError) throw err;

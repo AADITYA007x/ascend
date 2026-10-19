@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import worker from '../worker/worker.js';
 
 const APP = 'https://ascend.example';
-const env = { GEMINI_API_KEY: 'test-key', ALLOWED_ORIGINS: `${APP}, http://localhost:5173` };
+const env = { GEMINI_API_KEY: 'test-key', GEMINI_RETRY_MS: 0, ALLOWED_ORIGINS: `${APP}, http://localhost:5173` };
 
 function req(body, { origin = APP, method = 'POST', path = '/cards' } = {}) {
   const headers = { 'Content-Type': 'application/json' };
@@ -71,7 +71,7 @@ describe('card helper worker', () => {
     expect(res.status).toBe(502);
     expect((await res.json()).error).toMatch(/try again/i);
 
-    stubGemini(new Response('{"error":{"message":"secret details"}}', { status: 500 }));
+    stubGemini(new Response('{"error":{"message":"secret details"}}', { status: 400 }));
     res = await worker.fetch(req({ notes: 'n' }), env);
     expect(res.status).toBe(502);
     expect(JSON.stringify(await res.json())).not.toContain('secret details');
@@ -187,5 +187,44 @@ describe('backup model', () => {
     const res = await worker.fetch(req({ notes: 'n' }), { ...env, GEMINI_FALLBACK_MODEL: 'gemini-x-lite' });
     expect(res.status).toBe(429);
     expect(spy.mock.calls.map(([u]) => String(u).match(/models\/([^:]+)/)[1])).toEqual(['gemini-3.8-flash', 'gemini-x-lite']);
+  });
+
+  const modelsAsked = (spy) => spy.mock.calls.map(([u]) => String(u).match(/models\/([^:]+)/)[1]);
+
+  it('asks an overloaded model once more before moving on', async () => {
+    let n = 0;
+    const spy = vi.fn(async () => (++n === 1 ? new Response('{}', { status: 503 }) : geminiReply(JSON.stringify([{ front: 'Q', back: 'A' }]))));
+    vi.stubGlobal('fetch', spy);
+    expect((await worker.fetch(req({ notes: 'n' }), env)).status).toBe(200);
+    expect(modelsAsked(spy)).toEqual(['gemini-3.8-flash', 'gemini-3.8-flash']);
+  });
+
+  it('moves to the backup model when the main one stays overloaded', async () => {
+    const spy = vi.fn(async (url) =>
+      String(url).includes('gemini-3.8-flash') ? new Response('{}', { status: 503 }) : geminiReply(JSON.stringify([{ front: 'Q', back: 'A' }])),
+    );
+    vi.stubGlobal('fetch', spy);
+    expect((await worker.fetch(req({ notes: 'n' }), env)).status).toBe(200);
+    expect(modelsAsked(spy)).toEqual(['gemini-3.8-flash', 'gemini-3.8-flash', 'gemini-3.5-flash-lite']);
+  });
+
+  it('says Gemini is busy, without details, when every model is overloaded', async () => {
+    const spy = vi.fn(async () => new Response('{"error":{"message":"secret details"}}', { status: 503 }));
+    vi.stubGlobal('fetch', spy);
+    const res = await worker.fetch(req({ notes: 'n' }), env);
+    expect(res.status).toBe(503);
+    const body = JSON.stringify(await res.json());
+    expect(body).toMatch(/very busy/);
+    expect(body).not.toContain('secret details');
+    expect(spy).toHaveBeenCalledTimes(4);
+  });
+
+  it('moves to the backup model when the main one’s name was retired', async () => {
+    const spy = vi.fn(async (url) =>
+      String(url).includes('gemini-3.8-flash') ? new Response('{}', { status: 404 }) : geminiReply(JSON.stringify([{ front: 'Q', back: 'A' }])),
+    );
+    vi.stubGlobal('fetch', spy);
+    expect((await worker.fetch(req({ notes: 'n' }), env)).status).toBe(200);
+    expect(modelsAsked(spy)).toEqual(['gemini-3.8-flash', 'gemini-3.5-flash-lite']);
   });
 });

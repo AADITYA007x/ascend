@@ -11,7 +11,8 @@
 //   GEMINI_API_KEY   secret, from Google AI Studio. Never put it in the app.
 //   ALLOWED_ORIGINS  comma list of where your app runs, e.g. https://ascend.pages.dev,http://localhost:5173
 //   GEMINI_MODEL           optional, defaults to gemini-3.8-flash (check AI Studio for current free models)
-//   GEMINI_FALLBACK_MODEL  optional, defaults to gemini-3.5-flash-lite; used when the main model's free limit is reached
+//   GEMINI_FALLBACK_MODEL  optional, defaults to gemini-3.5-flash-lite; used when the main model's free
+//                          limit is reached, it is overloaded ("high demand") or its name was retired
 
 const NOTES_MAX = 12000;
 const TOPIC_MAX = 120;
@@ -22,7 +23,9 @@ const BATCH_MAX = 20;
 const SUBJECTS_MAX = 30;
 const ROWS_MAX = 80;
 const DEFAULT_MODEL = 'gemini-3.8-flash';
-const FALLBACK_MODEL = 'gemini-3.5-flash-lite'; // tried when the main model's free daily limit is used up
+const FALLBACK_MODEL = 'gemini-3.5-flash-lite'; // tried when the main model is used up, overloaded or gone
+const OVERLOADED = [500, 503, 504]; // Gemini's "high demand" answers: usually gone within seconds
+const RETRY_MS = 2000; // wait before asking an overloaded model once more
 const UPLOAD_MAX = 50 * 1024 * 1024; // bytes
 const UPLOAD_WAIT_MS = 60 * 1000; // how long to wait for Google to finish processing a PDF
 const SYLLABUS_FILES_MAX = 12;
@@ -32,6 +35,7 @@ const TOPICS_MAX = 25;
 const API = 'https://generativelanguage.googleapis.com';
 
 const BUSY = 'The helper couldn’t do that right now. Try again in a bit.';
+const OVERLOADED_MSG = 'Gemini is very busy right now. Try again in a few minutes.';
 
 const CARDS_SCHEMA = {
   type: 'ARRAY',
@@ -92,7 +96,7 @@ function timetablePrompt(batch, subjects) {
 }
 
 /**
- * Asks Gemini for a JSON list, trying the backup model when the main one's free limit is reached.
+ * Asks Gemini for a JSON list, trying the backup model when the main one is used up, overloaded or gone.
  * Returns { status, list } or { status, error }.
  * schema: a strict response schema, or null to rely on the prompt (needed with images on newer models).
  * fast: ask for a low thinking level (much quicker); if the model refuses it (400), retry once without.
@@ -102,8 +106,9 @@ async function askGemini(parts, schema, env, opts = {}) {
   let r;
   for (const model of models) {
     r = await askModel(model, parts, schema, env, opts);
-    // Free tier: each model has its own daily allowance, so when one is used up the next may still answer.
-    if (r.status !== 429) return r;
+    // Each model has its own free allowance and its own load, so when one can't answer the next may.
+    // 404: the model's name was retired.
+    if (r.status !== 429 && r.status !== 503 && r.upstream !== 404) return r;
   }
   return r;
 }
@@ -124,14 +129,22 @@ async function askModel(model, parts, schema, env, { fast = false } = {}) {
     const detail = await r.text().catch(() => '');
     console.error(`Gemini ${model} (${label}) answered ${r.status}: ${detail.slice(0, 500)}`);
   };
-  let res = await call(fast);
-  if (!res.ok) await logFailure(res, fast ? 'low thinking' : 'default');
-  if (res.status === 400 && fast) {
-    res = await call(false);
+  let thinking = fast;
+  let res = await call(thinking);
+  if (!res.ok) await logFailure(res, thinking ? 'low thinking' : 'default');
+  if (res.status === 400 && thinking) {
+    thinking = false;
+    res = await call(thinking);
     if (!res.ok) await logFailure(res, 'default thinking');
   }
+  if (OVERLOADED.includes(res.status)) {
+    await new Promise((resolve) => setTimeout(resolve, Number(env.GEMINI_RETRY_MS ?? RETRY_MS)));
+    res = await call(thinking);
+    if (!res.ok) await logFailure(res, 'retry');
+  }
   if (res.status === 429) return { status: 429, error: 'The helper has reached its free limit for now. Try again later.' };
-  if (!res.ok) return { status: 502, error: BUSY };
+  if (OVERLOADED.includes(res.status)) return { status: 503, error: OVERLOADED_MSG };
+  if (!res.ok) return { status: 502, error: BUSY, upstream: res.status };
   try {
     const data = await res.json();
     const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('') ?? '';

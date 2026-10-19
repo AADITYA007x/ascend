@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import worker from '../worker/worker.js';
 
 const APP = 'https://ascend.example';
-const env = { GEMINI_API_KEY: 'test-key', ALLOWED_ORIGINS: APP };
+const env = { GEMINI_API_KEY: 'test-key', GEMINI_RETRY_MS: 0, ALLOWED_ORIGINS: APP };
 const API = 'https://generativelanguage.googleapis.com';
 const FILE = { uri: `${API}/v1beta/files/abc123`, name: 'files/abc123', mimeType: 'application/pdf' };
 

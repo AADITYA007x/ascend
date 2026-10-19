@@ -26,6 +26,11 @@ const TIME_PRESETS = [15, 30, 45, 60, 90, 120];
 let flow = null;
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const waitOrCancel = (ms, signal) =>
+  new Promise((resolve) => {
+    const t = setTimeout(resolve, ms);
+    signal.addEventListener('abort', () => (clearTimeout(t), resolve()), { once: true });
+  });
 const onThisScreen = () => location.hash.startsWith('#/subjects/import');
 const redraw = () => onThisScreen() && rerender();
 
@@ -150,11 +155,23 @@ async function start(files, hintText) {
     }
     flow.step = 'finding';
     redraw();
-    const data = await postHelper(
-      '/syllabus/subjects',
-      { files: flow.files, hint, mine: state.subjects.map((s) => (s.code ? `${s.name} (${s.code})` : s.name)) },
-      { timeoutMs: WAIT_MS, signal: controller.signal },
-    );
+    const body = { files: flow.files, hint, mine: state.subjects.map((s) => (s.code ? `${s.name} (${s.code})` : s.name)) };
+    let data;
+    for (let tries = 1; ; tries++) {
+      try {
+        data = await postHelper('/syllabus/subjects', body, { timeoutMs: WAIT_MS, signal: controller.signal });
+        break;
+      } catch (err) {
+        if (err.kind !== 'limit' || tries > LIMIT_TRIES) throw err;
+        // Gemini is busy or at its per-minute limit: the files are uploaded already, so wait and ask again.
+        flow.busy = true;
+        redraw();
+        await waitOrCancel(LIMIT_WAIT_MS, controller.signal);
+        if (!mine()) return;
+        flow.busy = false;
+        redraw();
+      }
+    }
     if (!mine()) return;
     const subjects = cleanSubjectList(data.subjects, state.subjects, hint);
     if (!subjects.length) throw Object.assign(new Error('No subjects could be found in that file. Try clearer photos or the official PDF.'), { kind: 'empty' });
@@ -199,7 +216,11 @@ function progressView() {
       ),
     ),
     h('p', { class: 'card-heading', role: 'status' }, finding ? 'Finding the subjects in your syllabus…' : 'Uploading…'),
-    h('p', { class: 'muted small' }, finding ? 'A big syllabus can take a minute or two.' : 'Big PDFs take a little while on mobile data.'),
+    h(
+      'p',
+      { class: 'muted small' },
+      flow.busy ? 'Gemini is busy… trying again in 30 s' : finding ? 'A big syllabus can take a minute or two.' : 'Big PDFs take a little while on mobile data.',
+    ),
     h('button', { type: 'button', class: 'btn btn-quiet', onclick: cancel }, 'Cancel'),
   );
 }
@@ -342,7 +363,7 @@ function readingView() {
 function readLabel(r) {
   if (r.status === 'waiting') return 'Waiting…';
   if (r.status === 'reading') return 'Reading…';
-  if (r.status === 'limit') return 'Waiting for Gemini’s free limit… trying again in 30 s';
+  if (r.status === 'limit') return 'Gemini is busy… trying again in 30 s';
   if (r.status === 'failed') return `Couldn’t read this one. ${r.error ?? ''}`.trim();
   const topics = r.units.reduce((s, u) => s + u.topics.length, 0);
   return `${plural(r.units.length, 'unit')} · ${plural(topics, 'topic')}`;
