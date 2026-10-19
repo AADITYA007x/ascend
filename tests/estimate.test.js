@@ -43,6 +43,9 @@ describe('subjectPace', () => {
   it('faster than estimated lowers it', () => {
     expect(subjectPace('A', topics, [session('a', '2026-10-01', 30, { finished: true })])).toBeLessThan(1);
   });
+  it('ignores topics marked done without any study time', () => {
+    expect(subjectPace('A', topics, [session('a', '2026-10-01', 0, { finished: true, source: 'mark' })])).toBe(1);
+  });
   it('only uses topics of that subject', () => {
     expect(subjectPace('A', topics, [session('x', '2026-10-01', 200, { finished: true })])).toBe(1);
   });

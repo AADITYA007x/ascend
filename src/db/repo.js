@@ -254,6 +254,22 @@ export function saveSyllabusImport({ subjects = [], units = [], topics = [] }) {
   });
 }
 
+/**
+ * Saves and removes sessions together (marking a topic done / not done).
+ * Returns what undoImport needs to put things back as they were.
+ */
+export function saveSessionChanges({ save = [], remove = [] }) {
+  return tx(['sessions'], 'readwrite', async (t) => {
+    const os = t.objectStore('sessions');
+    const ids = [...save.map((s) => s.id), ...remove];
+    const before = (await Promise.all(ids.map((id) => reqToPromise(os.get(id))))).filter(Boolean);
+    for (const id of remove) os.delete(id);
+    for (const s of save) os.put(s);
+    const existed = new Set(before.map((s) => s.id));
+    return { added: { sessions: save.filter((s) => !existed.has(s.id)).map((s) => s.id) }, removed: { sessions: before } };
+  });
+}
+
 /** Takes an import back: removes what it added and puts back what it replaced. */
 export function undoImport({ added, removed }) {
   const stores = [...new Set([...Object.keys(added), ...Object.keys(removed)])];

@@ -5,7 +5,8 @@ import { field, textInput, select, stepper, chips, showMessages, fab, emptyState
 import { openSheet } from '../ui/sheet.js';
 import { toast } from '../ui/toast.js';
 import { state, reload, subjectById, cardsFor } from '../state.js';
-import { saveUnit, saveUnits, saveTopic, saveTopics, deleteUnit, deleteTopic, restore } from '../db/repo.js';
+import { saveUnit, saveUnits, saveTopic, saveTopics, deleteUnit, deleteTopic, restore, saveSessionChanges, undoImport } from '../db/repo.js';
+import { topicProgress, markDoneSession, unmarkDone } from '../model/progress.js';
 import { makeUnit, makeTopic, DIFFICULTY_LABELS } from '../model/factory.js';
 import { validateUnit, validateTopic } from '../model/validate.js';
 import { subjectTotals, byOrder, nextOrder, moveItem } from '../model/summary.js';
@@ -93,12 +94,45 @@ function reviewState(st, today) {
 
 const cardCount = (n) => `${n} flashcard${n === 1 ? '' : 's'}`;
 
+/** The round check before a topic: tap to mark it done, tap again to mark it not done. Undo in the toast. */
+function doneToggle(topic, done) {
+  return h(
+    'button',
+    {
+      type: 'button',
+      class: done ? 'done-toggle on' : 'done-toggle',
+      'aria-pressed': done ? 'true' : 'false',
+      'aria-label': `${topic.name}: ${done ? 'done. Tap to mark as not done' : 'mark as done'}`,
+      onclick: async () => {
+        const changes = done
+          ? unmarkDone(state.sessions, topic.id)
+          : { save: [markDoneSession(topic, { semesterId: state.semester.id, date: todayYMD() })], remove: [] };
+        const undo = await saveSessionChanges(changes);
+        await reload();
+        rerender();
+        toast(done ? `${topic.name} is back in your plan` : `${topic.name} done. It’ll come back for review.`, {
+          actionLabel: 'Undo',
+          duration: 6000,
+          onAction: async () => {
+            await undoImport(undo);
+            await reload();
+            rerender();
+          },
+        });
+      },
+    },
+    icon('check', 18),
+  );
+}
+
 function unitBlock(subject, unit) {
   const learned = learnedEstimates();
   const today = todayYMD();
   const reviews = revisionStates(state.topics, state.sessions);
   const topics = byOrder(state.topics.filter((t) => t.unitId === unit.id));
   const est = topics.reduce((sum, t) => sum + t.estMin, 0);
+  const progress = topicProgress(state.sessions);
+  const doneCount = topics.filter((t) => progress.get(t.id)?.done).length;
   const details = h(
     'details',
     {
@@ -116,7 +150,9 @@ function unitBlock(subject, unit) {
         h(
           'span',
           { class: 'muted small' },
-          topics.length ? `${topics.length} topic${topics.length === 1 ? '' : 's'} · ${formatMinutes(est)}` : 'No topics yet',
+          topics.length
+            ? `${topics.length} topic${topics.length === 1 ? '' : 's'} · ${formatMinutes(est)}${doneCount ? ` · ${doneCount} done` : ''}`
+            : 'No topics yet',
         ),
       ),
       h(
@@ -140,7 +176,8 @@ function unitBlock(subject, unit) {
           topics.map((t) =>
             h(
               'li',
-              {},
+              { class: progress.get(t.id)?.done ? 'topic-item done' : 'topic-item' },
+              doneToggle(t, Boolean(progress.get(t.id)?.done)),
               h(
                 'button',
                 { type: 'button', class: 'topic-row', onclick: () => openTopicSheet(subject, unit, t) },

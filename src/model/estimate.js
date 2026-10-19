@@ -38,7 +38,8 @@ export function subjectPace(subjectId, topics, sessions, actual = actualMinutes(
   let est = 0;
   let real = 0;
   for (const t of topics) {
-    if (t.subjectId !== subjectId || !actual.has(t.id)) continue;
+    // Topics marked done with no study time say nothing about your pace.
+    if (t.subjectId !== subjectId || !actual.get(t.id)) continue;
     est += Number(t.estMin) || 0;
     real += actual.get(t.id);
   }

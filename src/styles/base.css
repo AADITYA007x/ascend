@@ -602,6 +602,61 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+/* A topic with its done check: the line runs under both. */
+.topic-item {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+}
+
+.topic-item .topic-row {
+  border-bottom: 0;
+}
+
+.done-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--tap);
+  height: var(--tap);
+  margin-left: -8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: transparent;
+  cursor: pointer;
+}
+
+/* The visible ring is smaller than the tap area. */
+.done-toggle .icon {
+  width: 26px;
+  height: 26px;
+  border: 2px solid color-mix(in srgb, var(--muted) 55%, transparent);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.done-toggle:hover .icon {
+  border-color: var(--accent);
+}
+
+.done-toggle.on {
+  color: var(--surface);
+}
+
+.done-toggle.on .icon {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.topic-item.done .topic-name {
+  color: var(--muted);
+}
+
 .topic-time {
   flex: none;
   min-width: 64px;
