@@ -268,12 +268,16 @@ function doneToday(today, summit) {
             h(
               'span',
               { class: 'muted small' },
-              [
-                s.kind === 'revision' ? 'review' : null,
-                formatMinutes(s.minutes),
-                s.kind === 'revision' ? null : s.finished ? 'finished' : 'more to go',
-                RATING_LABELS[s.rating]?.toLowerCase(),
-              ]
+              // Marked done from the subject screen: no study time to show.
+              (s.source === 'mark'
+                ? ['marked done']
+                : [
+                    s.kind === 'revision' ? 'review' : null,
+                    formatMinutes(s.minutes),
+                    s.kind === 'revision' ? null : s.finished ? 'finished' : 'more to go',
+                    RATING_LABELS[s.rating]?.toLowerCase(),
+                  ]
+              )
                 .filter(Boolean)
                 .join(' · '),
             ),
