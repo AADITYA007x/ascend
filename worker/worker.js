@@ -36,6 +36,7 @@ const API = 'https://generativelanguage.googleapis.com';
 
 const BUSY = 'The helper couldn’t do that right now. Try again in a bit.';
 const OVERLOADED_MSG = 'Gemini is very busy right now. Try again in a few minutes.';
+const MODELS_GONE = 'The helper’s Gemini model names are out of date. Update GEMINI_MODEL in the Worker settings.';
 
 const CARDS_SCHEMA = {
   type: 'ARRAY',
@@ -103,14 +104,19 @@ function timetablePrompt(batch, subjects) {
  */
 async function askGemini(parts, schema, env, opts = {}) {
   const models = [...new Set([env.GEMINI_MODEL || DEFAULT_MODEL, env.GEMINI_FALLBACK_MODEL || FALLBACK_MODEL].filter(Boolean))];
-  let r;
+  const failures = [];
   for (const model of models) {
-    r = await askModel(model, parts, schema, env, opts);
+    const r = await askModel(model, parts, schema, env, opts);
     // Each model has its own free allowance and its own load, so when one can't answer the next may.
     // 404: the model's name was retired.
     if (r.status !== 429 && r.status !== 503 && r.upstream !== 404) return r;
+    failures.push(r);
   }
-  return r;
+  // A retired backup name shouldn't hide the real reason (free limit, overloaded) from the first model.
+  const real = failures.find((r) => r.upstream !== 404);
+  if (real) return real;
+  console.error(`No Gemini model answered: ${models.join(', ')} not found. Set GEMINI_MODEL to a current model.`);
+  return { status: 502, error: MODELS_GONE };
 }
 
 async function askModel(model, parts, schema, env, { fast = false } = {}) {
